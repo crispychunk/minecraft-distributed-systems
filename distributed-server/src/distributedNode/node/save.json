@@ -1,0 +1,56 @@
+{
+  "isPrimaryNode": true,
+  "inNetwork": true,
+  "filePath": "./src/distributedNode/node/save.json",
+  "mainPort": 8080,
+  "rsyncPort": 8081,
+  "minecraftPort": 8082,
+  "address": "localhost",
+  "mainServer": {
+    "log": {},
+    "server": {
+      "_events": {},
+      "_eventsCount": 6,
+      "_connections": 1,
+      "_handle": {
+        "reading": false
+      },
+      "_usingWorkers": false,
+      "_workers": [],
+      "_unref": false,
+      "allowHalfOpen": true,
+      "pauseOnConnect": false,
+      "httpAllowHalfOpen": false,
+      "timeout": 0,
+      "keepAliveTimeout": 72000,
+      "maxHeadersCount": null,
+      "maxRequestsPerSocket": 0,
+      "headersTimeout": 60000,
+      "requestTimeout": 0,
+      "_connectionKey": "4:127.0.0.1:8080"
+    },
+    "initialConfig": {
+      "connectionTimeout": 0,
+      "keepAliveTimeout": 72000,
+      "maxRequestsPerSocket": 0,
+      "requestTimeout": 0,
+      "requestIdHeader": "request-id",
+      "requestIdLogLabel": "reqId",
+      "disableRequestLogging": false,
+      "bodyLimit": 1048576,
+      "caseSensitive": true,
+      "allowUnsafeRegex": false,
+      "ignoreTrailingSlash": false,
+      "ignoreDuplicateSlashes": false,
+      "jsonShorthand": true,
+      "maxParamLength": 100,
+      "onProtoPoisoning": "error",
+      "onConstructorPoisoning": "error",
+      "pluginTimeout": 10000,
+      "http2SessionTimeout": 72000,
+      "exposeHeadRoutes": true
+    }
+  },
+  "networkNodes": [],
+  "uuid": "1735d919-c74d-44a6-ac1b-4e63dd3926e3"
+}

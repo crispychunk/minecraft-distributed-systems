@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "strict": false, // Set to false to relax all strict checks
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true
+  }
+}
