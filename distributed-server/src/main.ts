@@ -1,7 +1,4 @@
-import {
-  DistributedServerNode,
-  loadFromFile,
-} from "./distributedNode/distributedNode";
+import { DistributedServerNode, loadFromFile } from "./distributedNode/distributedNode";
 function main() {
   // Initialize networks
   // Find public IP
@@ -13,16 +10,7 @@ function main() {
   let node: DistributedServerNode = loadFromFile();
   if (node == null) {
     console.log("creating new node");
-    node = new DistributedServerNode(
-      address,
-      httpPort,
-      rSyncPort,
-      minecraftPort,
-      null,
-      null,
-      null,
-      null
-    );
+    node = new DistributedServerNode(address, httpPort, rSyncPort, minecraftPort, null, null, null, null);
   }
   console.log("Distributed node up!"); // Print a message to the console
 }

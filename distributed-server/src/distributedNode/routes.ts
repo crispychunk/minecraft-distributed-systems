@@ -21,12 +21,28 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     return { message: "Network started successfully" };
   });
 
-  // Route for joining a network
-  mainServer.put("/network", async (request, reply) => {
+  // Route to tell node to join a network
+  mainServer.put("/request-network", async (request, reply) => {
     // Logic for joining a network goes here
     if (node.inNetwork) {
       return reply.code(400).send({ error: "Already in a network" });
     }
+    node.joinNetwork(request.body);
+
+    return { message: "Requested to join network", data: request.data };
+  });
+
+  // Route for primary server to send network info requestor
+  mainServer.put("/network", async (request, reply) => {
+    // Logic for joining a network goes here
+    if (!node.inNetwork) {
+      return reply.code(400).send({ error: "This node is not in a network" });
+    }
+    if (!node.primaryNode) {
+      return reply.code(400).send({ error: "This node is not the primary node!" });
+    }
+    // Send current network info with 200 on success
+    const data = 
 
     return { message: "Joined the network successfully" };
   });

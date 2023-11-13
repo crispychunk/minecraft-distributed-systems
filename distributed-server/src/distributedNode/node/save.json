@@ -1,6 +1,6 @@
 {
-  "isPrimaryNode": true,
-  "inNetwork": true,
+  "isPrimaryNode": false,
+  "inNetwork": false,
   "filePath": "./src/distributedNode/node/save.json",
   "mainPort": 8080,
   "rsyncPort": 8081,
