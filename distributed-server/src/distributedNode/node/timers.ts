@@ -1,3 +1,5 @@
-const BASETIMER = 5000;
+const DEV = true;
 
-export { BASETIMER };
+const BASETIMER = 5000;
+const RSYNC_INTERVAL = DEV ? 5000 : 180000;
+export { BASETIMER, RSYNC_INTERVAL };

@@ -7,4 +7,4 @@ const sshClient = new RSyncClient({
   privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
 });
 
-sshClient.connect();
+sshClient.run("rsync -avz --delete ../minecraft-server/world ../minecraft-server");

@@ -1,11 +1,23 @@
 {
+  "mainPort": 8082,
+  "rsyncPort": 8083,
+  "minecraftPort": null,
+  "address": "localhost",
   "isPrimaryNode": false,
   "inNetwork": false,
-  "filePath": "./src/distributedNode/node/save.json",
-  "mainPort": 8080,
-  "rsyncPort": 8081,
-  "minecraftPort": 8082,
-  "address": "localhost",
+  "uuid": null,
+  "selfNode": {
+    "uuid": "2de7b395-238c-48ff-b7f5-06917ea10d59",
+    "address": "localhost",
+    "distributedPort": 8082,
+    "rsyncPort": 8083,
+    "minecraftPort": null,
+    "alive": true,
+    "isPrimary": false
+  },
+  "networkNodes": [],
+  "primaryNode": null,
+  "alive": true,
   "mainServer": {
     "log": {},
     "server": {
@@ -27,7 +39,7 @@
       "maxRequestsPerSocket": 0,
       "headersTimeout": 60000,
       "requestTimeout": 0,
-      "_connectionKey": "4:127.0.0.1:8080"
+      "_connectionKey": "4:127.0.0.1:8082"
     },
     "initialConfig": {
       "connectionTimeout": 0,
@@ -50,7 +62,5 @@
       "http2SessionTimeout": 72000,
       "exposeHeadRoutes": true
     }
-  },
-  "networkNodes": [],
-  "uuid": "1735d919-c74d-44a6-ac1b-4e63dd3926e3"
+  }
 }

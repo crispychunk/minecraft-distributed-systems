@@ -2,9 +2,11 @@ import { DistributedServerNode } from "../src/distributedNode/distributedNode";
 import { v4 as uuidv4 } from "uuid";
 
 // In network node
-const testNode1 = new DistributedServerNode("localhost", 8080, 8081, null, true, true, [], uuidv4());
-testNode1.networkNodes = [testNode1.selfNode];
+const testNode1 = new DistributedServerNode("localhost", 8080, 8081, null, true, true, null, uuidv4(), 0);
 testNode1.start();
 
-const newNode = new DistributedServerNode("localhost", 8082, 8083, null, null, null, null, null);
+const newNode = new DistributedServerNode("localhost", 8082, 8083, null, null, null, null, null, 0);
 newNode.start();
+
+const newNode2 = new DistributedServerNode("localhost", 8090, 8091, null, null, null, null, null, 0);
+newNode2.start();

@@ -6,4 +6,5 @@ export interface DistributedNode {
   minecraftPort: number;
   alive: boolean;
   isPrimary: boolean;
+  rSyncTerm: number;
 }

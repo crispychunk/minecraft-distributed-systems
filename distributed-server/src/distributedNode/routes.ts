@@ -5,6 +5,12 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     return { hello: "world" };
   });
 
+  // Base route
+  mainServer.get("/info", async (request, reply) => {
+    const info = node.getServerInformation();
+    return { info };
+  });
+
   /* 
   NETWORK ROUTES
   These routes handle join/leaving/creating a network
@@ -27,56 +33,77 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     if (node.inNetwork) {
       return reply.code(400).send({ error: "Already in a network" });
     }
-    node.joinNetwork(request.body);
+    node.requestNetwork(request.body);
 
     return { message: "Requested to join network", data: request.data };
   });
 
-  // Route for primary server to send network info requestor
-  mainServer.put("/network", async (request, reply) => {
+  // Primary server route to send to server the node info
+  mainServer.put("/join-network", async (request, reply) => {
+    if (!node.isPrimaryNode) {
+      return reply.code(400).send({ error: "Not a primary node!" });
+    }
+    console.log("Adding node to network");
+    const networkNode = node.acceptJoinNetwork(request.body);
+    return reply.code(200).send({ data: networkNode });
+  });
+
+  // Route for primary server to send network info to requestor
+  mainServer.put("/update-network", async (request, reply) => {
     // Logic for joining a network goes here
     if (!node.inNetwork) {
       return reply.code(400).send({ error: "This node is not in a network" });
     }
-    if (!node.primaryNode) {
-      return reply.code(400).send({ error: "This node is not the primary node!" });
+    if (node.primaryNode) {
+      return reply.code(400).send({ error: "This node is a primary node!" });
     }
-    // Send current network info with 200 on success
-    const data = 
-
-    return { message: "Joined the network successfully" };
+    // Update self node list
+    node.updateNodeList(request.data);
+    return { message: "Network node updated successfully" };
   });
 
-  mainServer.delete("/network", async (request, reply) => {
+  mainServer.delete("/request-leave-network", async (request, reply) => {
     if (!node.inNetwork) {
       return reply.code(400).send({ error: "Already not in the network" });
     }
     // Logic for leaving a network
+    await node.requestLeaveNetwork();
+
+    return { message: "Network left successfully" };
+  });
+
+  mainServer.put("/leave-network", async (request, reply) => {
+    if (!node.inNetwork) {
+      return reply.code(400).send({ error: "Already not in the network" });
+    }
+
+    if (!node.isPrimaryNode) {
+      return reply.code(400).send({ error: "Not a primary node!" });
+    }
+    // Logic for leaving a network
+    await node.acceptLeaveNetwork(request.body);
 
     return { message: "Network started successfully" };
   });
 
-  /* 
-  Distributed Node Routes
-  These routes handle adding and removing a node from the list of nodes on the network, useful to determine which node is in the network
+  /*
+  RSYNC ROUTES
+
   */
-
-  // Use to call the primary server to remove node when the node wants to leave
-  mainServer.delete("/nodes", async (request, reply) => {
+  mainServer.put("/rSync", async (request, reply) => {
     if (!node.inNetwork) {
       return reply.code(400).send({ error: "Not in a network" });
     }
 
-    return { message: "Network started successfully" };
-  });
-
-  // Use by the primary server to propogate all nodes with the updated distributed node list
-  mainServer.put("/nodes", async (request, reply) => {
-    if (!node.inNetwork) {
-      return reply.code(400).send({ error: "Not in a network" });
+    if (node.isPrimaryNode) {
+      return reply.code(400).send({ error: "Its the primary node!" });
     }
+    // Call server via ssh
+    node.syncWorlds();
 
-    return { message: "Network started successfully" };
+    // Set the current rsync replication term to the specified amount
+
+    return reply.code(200);
   });
 
   /* 
