@@ -8,3 +8,15 @@ export interface DistributedNode {
   isPrimary: boolean;
   rSyncTerm: number;
 }
+
+export interface RAFTSave {
+  currentTerm: number;
+  votedFor: string;
+  state: RaftState;
+}
+
+export enum RaftState {
+  FOLLOWER = "follower",
+  CANDIDATE = "candidate",
+  LEADER = "leader",
+}

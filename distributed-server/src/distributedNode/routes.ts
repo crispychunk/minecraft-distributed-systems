@@ -16,7 +16,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
   These routes handle join/leaving/creating a network
   */
   // Route for starting a network
-  mainServer.post("/network", async (request, reply) => {
+  mainServer.post("/create-network", async (request, reply) => {
     // if already in network, fail
     if (node.inNetwork) {
       return reply.code(400).send({ error: "Already in the network" });
@@ -54,11 +54,11 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     if (!node.inNetwork) {
       return reply.code(400).send({ error: "This node is not in a network" });
     }
-    if (node.primaryNode) {
+    if (node.isPrimaryNode) {
       return reply.code(400).send({ error: "This node is a primary node!" });
     }
     // Update self node list
-    node.updateNodeList(request.data);
+    node.updateNodeList(request.body);
     return { message: "Network node updated successfully" };
   });
 
@@ -115,12 +115,41 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     if (!node.inNetwork) {
       return reply.code(400).send({ error: "Not in a network" });
     }
-
-    return { message: "Network started successfully" };
+    if (node.isPrimaryNode) {
+      return reply.code(400).send({ error: "This is a primary node!" });
+    }
+    //Recieved heartbeat from the primary so its good
+    console.log("Heartbeat recieved from primary");
+    node.resetHeartbeatTimer();
+    return { message: "Heartbeat Recieved" };
   });
 
   /* 
   Leadership Routes
    These routes are for leadership elections and proposal 
   */
+  mainServer.get("/request-vote", async (request, reply) => {
+    if (!node.inNetwork) {
+      return reply.code(400).send({ error: "Not in a network" });
+    }
+    if (node.isPrimaryNode) {
+      return reply.code(400).send({ error: "This is a primary node!" });
+    }
+    //Recieved heartbeat from the primary so its good
+
+    return { message: "Voted" };
+  });
+
+  // Have new primary send this after it has garner enough votes
+  mainServer.post("/new-leader", async (request, reply) => {
+    if (!node.inNetwork) {
+      return reply.code(400).send({ error: "Not in a network" });
+    }
+    if (node.isPrimaryNode) {
+      return reply.code(400).send({ error: "This is a primary node!" });
+    }
+    //Recieved heartbeat from the primary so its good
+
+    return { message: "New Leader Accepted" };
+  });
 };

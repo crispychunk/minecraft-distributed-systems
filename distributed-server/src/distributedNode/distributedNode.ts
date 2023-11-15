@@ -4,12 +4,12 @@ import { RSyncServer } from "../rsync/RSyncServer";
 import { routes } from "./routes";
 import { v4 as uuidv4 } from "uuid";
 import * as fs from "fs";
-import { DistributedNode } from "./node/distributedNodeInterface";
+import { DistributedNode, RAFTSave, RaftState } from "./node/distributedNodeInterface";
 import axios, { AxiosError } from "axios";
 import { clearInterval } from "timers";
 import { RSyncClient } from "../rsync/RSyncClient";
-import { RSYNC_INTERVAL } from "./node/timers";
-
+import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMER, RSYNC_INTERVAL } from "./node/timers";
+import { RAFTconsensus } from "./RAFTconsensus";
 const FILEPATH = "./src/distributedNode/node/save.json";
 const ENV = "dev";
 export class DistributedServerNode {
@@ -37,12 +37,17 @@ export class DistributedServerNode {
   // Interal function data
 
   // Routine IDs
-  private hearbeatIntervalId: any;
+  private hearbeatId: any;
   private rSyncId: any;
+  private heartbeatTimerId: any;
 
   // Rsync information
   private rSyncClient: RSyncClient;
   private rSyncTerm: number;
+
+  // Raft Consensus
+  private raftSave: RAFTSave;
+  private RAFTConsensus: RAFTconsensus;
 
   constructor(
     address: string,
@@ -53,7 +58,8 @@ export class DistributedServerNode {
     inNetwork: boolean,
     networkNodes: DistributedNode[],
     uuid: string,
-    rSyncTerm: number
+    rSyncTerm: number,
+    raftSave: RAFTSave
   ) {
     this.mainPort = mainPort;
     this.rsyncPort = rsyncPort;
@@ -67,6 +73,12 @@ export class DistributedServerNode {
     this.networkNodes = networkNodes || [this.selfNode];
     this.primaryNode = this.findPrimaryNode();
     this.alive = true;
+    const baseRaftSave: RAFTSave = {
+      currentTerm: 0,
+      votedFor: null,
+      state: RaftState.FOLLOWER,
+    };
+    this.raftSave = raftSave || baseRaftSave;
   }
 
   private findPrimaryNode() {
@@ -98,6 +110,13 @@ export class DistributedServerNode {
 
   private initDistributedServer(): void {
     this.mainServer = fastify();
+    // Init RAFT
+    this.RAFTConsensus = new RAFTconsensus(
+      this.raftSave.currentTerm,
+      this.raftSave.votedFor,
+      this.raftSave.state,
+      this
+    );
     // Define a route
     routes(this.mainServer, this);
     // Start the server on the specified port
@@ -140,8 +159,23 @@ export class DistributedServerNode {
 
   private saveToFile() {
     try {
-      const serializedNode = JSON.stringify(this, null, 2);
+      const serializableNode = {
+        mainPort: this.mainPort,
+        rsyncPort: this.rsyncPort,
+        minecraftPort: this.minecraftPort,
+        address: this.address,
+        isPrimaryNode: this.isPrimaryNode,
+        inNetwork: this.inNetwork,
+        networkNodes: this.networkNodes.map((node) => ({ ...node })),
+        uuid: this.uuid,
+        rSyncTerm: this.rSyncTerm,
+        primaryNode: this.primaryNode,
+        selfNode: { ...this.selfNode },
+        alive: this.alive,
+        raftSave: this.RAFTConsensus.saveFile(),
+      };
 
+      const serializedNode = JSON.stringify(serializableNode, null, 2);
       fs.writeFileSync(FILEPATH, serializedNode, "utf8");
       console.log("DistributedServerNode saved to file successfully.");
     } catch (err) {
@@ -151,10 +185,13 @@ export class DistributedServerNode {
 
   public getServerInformation() {
     console.log("getting server info");
+    this.RAFTConsensus.startElection();
+    const raftState = this.RAFTConsensus.saveFile();
     return {
       node: this.selfNode,
       network: this.networkNodes,
       primary: this.primaryNode,
+      raftState: raftState,
     };
   }
 
@@ -177,13 +214,16 @@ export class DistributedServerNode {
   public createNetwork() {
     this.isPrimaryNode = true;
     this.inNetwork = true;
-    this.networkNodes = [];
     this.uuid = uuidv4();
     this.rSyncTerm = 0;
+    this.RAFTConsensus.state = RaftState.LEADER;
     this.updateSelfNode();
+    this.networkNodes = [this.selfNode];
+    this.primaryNode = this.findPrimaryNode();
+    this.initRoutines();
     this.saveToFile();
 
-    this.initMCServerApplication();
+    // this.initMCServerApplication();
     this.initRsyncServer();
   }
   public async requestNetwork({ address }) {
@@ -206,8 +246,15 @@ export class DistributedServerNode {
         username: "username",
         privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
       });
+      this.RAFTConsensus = new RAFTconsensus(
+        this.raftSave.currentTerm,
+        this.raftSave.votedFor,
+        this.raftSave.state,
+        this
+      );
 
       this.initRoutines();
+      this.saveToFile();
     } catch (error) {
       // Handle the error
       console.error("Error joining network:", error);
@@ -254,9 +301,8 @@ export class DistributedServerNode {
       console.warn(`Network node with UUID ${uuid} not found.`);
     }
   }
-
   private sendPutRequest(node: DistributedNode): Promise<void> {
-    const url = `${node.address}/update-network`;
+    const url = `http://${node.address}:${node.distributedPort}/update-network`;
     return axios
       .put(url, this.networkNodes)
       .then(() => console.log(`PUT request to ${url} successful.`))
@@ -265,7 +311,6 @@ export class DistributedServerNode {
         //Test if server is dead
       });
   }
-
   public async propagateNetworkNodeList(): Promise<void> {
     const requestPromises = this.networkNodes.map((node) => {
       // Dont send to itself
@@ -283,7 +328,6 @@ export class DistributedServerNode {
   }
 
   // RSYNC
-
   public syncWorlds() {
     if (ENV == "dev") {
       this.rSyncClient.run(`rsync -avz --delete ../minecraft-server/world ./test/worlds/${this.uuid}`);
@@ -299,18 +343,16 @@ export class DistributedServerNode {
   // NETWORK ROUTINES
 
   public initRoutines() {
-    console.log("Setting up routines");
     this.resetRoutines();
     this.initHeartbeatRoutine();
-    this.initReplicationRoutine();
+    //this.initReplicationRoutine();
+    console.log(`Complete Routine Setup for ${this.uuid}`);
   }
 
   public resetRoutines() {
     this.rSyncId && clearInterval(this.rSyncId);
-    this.hearbeatIntervalId && clearInterval(this.hearbeatIntervalId);
+    this.hearbeatId && clearInterval(this.hearbeatId);
   }
-
-  public initHeartbeatRoutine() {}
 
   // Only primary send to other
   public initReplicationRoutine() {
@@ -322,7 +364,6 @@ export class DistributedServerNode {
       }, RSYNC_INTERVAL);
     }
   }
-
   private sendRSyncRequest(node: DistributedNode): Promise<void> {
     const url = `http://${node.address}:${node.distributedPort}/rSync`;
     return axios
@@ -348,6 +389,68 @@ export class DistributedServerNode {
       console.error("At least one PUT request failed:", error.message);
     }
   }
+
+  public initHeartbeatRoutine() {
+    if (this.inNetwork) {
+      if (this.isPrimaryNode) {
+        this.hearbeatId = setInterval(async () => {
+          //Send hearbeat to all servers
+          await this.propagateHeartbeat();
+        }, HEARTBEAT_INTERVAL);
+      } else {
+        // Set up the timer to check for heartbeats every 5 seconds
+        this.heartbeatTimerId = setInterval(this.handlePrimaryFailure, HEARTBEAT_TIMER); // Check every 5 seconds
+      }
+    }
+  }
+
+  private sendHeartbeatRequest(node: DistributedNode): Promise<void> {
+    const url = `http://${node.address}:${node.distributedPort}/heartbeat`;
+    return axios
+      .get(url)
+      .then(() => console.log(`GET request to ${url} successful.`))
+      .catch((error: AxiosError) => {
+        console.error(`Error in GET request to ${url}:`, error.message);
+        //If server dead
+        node.alive = false;
+      });
+  }
+
+  public async propagateHeartbeat(): Promise<void> {
+    const requestPromises = this.networkNodes.map((node) => {
+      // Dont send to itself
+      if (node.uuid != this.uuid) {
+        this.sendHeartbeatRequest(node);
+      }
+    });
+
+    try {
+      await Promise.all(requestPromises);
+      console.log("All Heartbeat requests completed successfully.");
+    } catch (error) {
+      console.error("At least one PUT request failed:", error.message);
+    }
+  }
+
+  public handlePrimaryFailure() {
+    console.log("Primary failure detected");
+    if (this.primaryNode) {
+      this.primaryNode.alive = false;
+    }
+
+    this.RAFTConsensus.startElection();
+  }
+
+  public resetHeartbeatTimer() {
+    try {
+      clearInterval(this.heartbeatTimerId);
+      this.heartbeatTimerId = setInterval(() => {
+        this.handlePrimaryFailure();
+      }, HEARTBEAT_TIMER);
+    } catch (error) {
+      console.error("An error occurred while resetting the heartbeat timer:", error);
+    }
+  }
 }
 
 export function loadFromFile(): DistributedServerNode | null {
@@ -365,7 +468,8 @@ export function loadFromFile(): DistributedServerNode | null {
       parsedData.inNetwork,
       parsedData.networkNodes,
       parsedData.uuid,
-      parsedData.rSyncTerm
+      parsedData.rSyncTerm,
+      parsedData.raftSave
     );
 
     console.log("DistributedServerNode loaded from file successfully.");

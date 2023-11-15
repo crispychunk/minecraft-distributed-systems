@@ -1,66 +1,28 @@
 {
-  "mainPort": 8082,
-  "rsyncPort": 8083,
+  "mainPort": 8080,
+  "rsyncPort": 8081,
   "minecraftPort": null,
   "address": "localhost",
   "isPrimaryNode": false,
   "inNetwork": false,
+  "networkNodes": [],
   "uuid": null,
+  "rSyncTerm": 0,
+  "primaryNode": null,
   "selfNode": {
-    "uuid": "2de7b395-238c-48ff-b7f5-06917ea10d59",
+    "uuid": "491229b5-c3d2-4785-9940-6c7c231277df",
     "address": "localhost",
-    "distributedPort": 8082,
-    "rsyncPort": 8083,
+    "distributedPort": 8080,
+    "rsyncPort": 8081,
     "minecraftPort": null,
     "alive": true,
-    "isPrimary": false
+    "isPrimary": true,
+    "rSyncTerm": 0
   },
-  "networkNodes": [],
-  "primaryNode": null,
   "alive": true,
-  "mainServer": {
-    "log": {},
-    "server": {
-      "_events": {},
-      "_eventsCount": 6,
-      "_connections": 1,
-      "_handle": {
-        "reading": false
-      },
-      "_usingWorkers": false,
-      "_workers": [],
-      "_unref": false,
-      "allowHalfOpen": true,
-      "pauseOnConnect": false,
-      "httpAllowHalfOpen": false,
-      "timeout": 0,
-      "keepAliveTimeout": 72000,
-      "maxHeadersCount": null,
-      "maxRequestsPerSocket": 0,
-      "headersTimeout": 60000,
-      "requestTimeout": 0,
-      "_connectionKey": "4:127.0.0.1:8082"
-    },
-    "initialConfig": {
-      "connectionTimeout": 0,
-      "keepAliveTimeout": 72000,
-      "maxRequestsPerSocket": 0,
-      "requestTimeout": 0,
-      "requestIdHeader": "request-id",
-      "requestIdLogLabel": "reqId",
-      "disableRequestLogging": false,
-      "bodyLimit": 1048576,
-      "caseSensitive": true,
-      "allowUnsafeRegex": false,
-      "ignoreTrailingSlash": false,
-      "ignoreDuplicateSlashes": false,
-      "jsonShorthand": true,
-      "maxParamLength": 100,
-      "onProtoPoisoning": "error",
-      "onConstructorPoisoning": "error",
-      "pluginTimeout": 10000,
-      "http2SessionTimeout": 72000,
-      "exposeHeadRoutes": true
-    }
+  "raftSave": {
+    "currentTerm": 0,
+    "votedFor": null,
+    "state": "leader"
   }
 }
