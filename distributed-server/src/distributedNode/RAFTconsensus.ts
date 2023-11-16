@@ -14,12 +14,18 @@ export class RAFTconsensus {
   public state: RaftState;
   public node: DistributedServerNode;
 
+  private retrycount: number;
+  private inElection: boolean;
+  private electionTimeoutId: any;
+
   constructor(currentTerm: number, votedFor: string, raftState: RaftState, node: DistributedServerNode) {
     this.currentTerm = currentTerm || 0;
     this.votedFor = votedFor || null;
     this.log = [];
     this.state = raftState || RaftState.FOLLOWER;
     this.node = node;
+    this.retrycount = 0;
+    this.inElection = false;
   }
 
   private requestVote(candidateTerm: number, candidateId: number): boolean {
@@ -32,14 +38,39 @@ export class RAFTconsensus {
     return false; // Placeholder return value
   }
 
-  public requestVoteHandler(candidateTerm: number, candidateId: string): boolean {
+  public requestVoteHandler(candidateTerm: number, candidateId: string): any {
     if (candidateTerm > this.currentTerm) {
       this.currentTerm = candidateTerm;
       this.votedFor = candidateId;
       this.state = RaftState.FOLLOWER;
-      return true;
+      this.inElection = true;
+      this.startElectionTimeout();
+      return { accepted: true };
     }
-    return false;
+    return { accepted: false, candidateTerm: this.currentTerm, candidateId: this.votedFor };
+  }
+
+  private startElectionTimeout() {
+    // Clear existing timeout if any
+    if (this.electionTimeoutId) {
+      clearTimeout(this.electionTimeoutId);
+    }
+
+    // Set a new timeout for 10 seconds
+    this.electionTimeoutId = setTimeout(() => {
+      this.handleElectionTimeout();
+    }, 10000); // 10 seconds in milliseconds
+  }
+
+  private handleElectionTimeout() {
+    // Reset the election state
+    this.inElection = false;
+    this.node.resetHeartbeatTimer();
+    console.log(`${this.node.uuid} detected election timeout`);
+  }
+
+  public clearElectionTimeout() {
+    clearTimeout(this.electionTimeoutId);
   }
 
   public appendEntriesHandler(leaderTerm: number, leaderId: number): boolean {
@@ -53,59 +84,87 @@ export class RAFTconsensus {
   }
 
   public startElection(): void {
-    if (this.state !== RaftState.LEADER) {
+    if (this.state !== RaftState.LEADER && this.inElection == false) {
       this.currentTerm += 1;
-      this.votedFor = null;
+      this.votedFor = this.node.uuid;
       this.state = RaftState.CANDIDATE;
+      this.inElection = true;
 
-      // Send RequestVote RPCs to all other nodes
-
-      // If received votes from a majority, become leader
+      this.propagateVoteRequests();
     }
   }
 
-  private sendVoteRequests(node: DistributedNode, positiveResponses: number, totalNodes: number): Promise<boolean> {
-    const url = `http://${node.address}:${node.distributedPort}/request-vote`;
-    return axios
-      .get(url)
-      .then(() => {
-        if (++positiveResponses > totalNodes / 2) {
-          return true; //
-        }
-        return false;
-      })
-      .catch((error: AxiosError) => {
-        console.error(`Error in GET request to ${url}:`, error.message);
-        return false;
-      });
-  }
-
   public async propagateVoteRequests(): Promise<void> {
-    const totalNodes = this.getAliveNodes(); // excluding itself
-    let positiveResponses = 1;
+    const maxDelay = 15000;
+    const baseDelay = Math.pow(2, this.retrycount + 2) * 100;
+    const randomFactor = Math.random() + 0.5;
+    const backoffDelay = Math.min(baseDelay * randomFactor, maxDelay);
+
+    const totalNodes = this.getAliveNodes();
+    const requiredPositiveResponses = Math.ceil(totalNodes.length / 2);
+    let positiveResponses = { count: 1, done: false };
+
+    if (positiveResponses.count >= requiredPositiveResponses) {
+      this.retrycount = 0;
+      console.log(`${this.node.uuid} Elect itself as the new leader as there are only 2 nodes`);
+      this.node.assumeLeadership();
+    }
 
     const requestPromises = totalNodes.map(async (node) => {
-      // Don't send to itself
-
-      const response = await this.sendVoteRequests(node, positiveResponses, totalNodes.length);
-      if (response) {
-        // If the promise resolved early, end Promise.all
-        throw new Error("Stop Promise.all");
+      // Check the flag and the positive response count before proceeding
+      if (node.uuid !== this.node.uuid) {
+        return this.sendVoteRequests(node, positiveResponses, requiredPositiveResponses);
       }
     });
 
+    await Promise.allSettled(requestPromises);
+
+    // Check if the positive count is less than required before retrying
+    if (positiveResponses.count < requiredPositiveResponses) {
+      console.log(positiveResponses.count);
+      // TODO
+      // Hold off on the election, see why it failed
+      // If it's behind a term, update itself first, then retry
+      setTimeout(() => {
+        console.log("retrying election");
+        this.inElection = false;
+        this.startElection();
+      }, 10000 + backoffDelay);
+    }
+  }
+
+  private async sendVoteRequests(
+    node: DistributedNode,
+    positiveResponses: { count: number; done: boolean },
+    requiredPositiveResponses: number
+  ): Promise<boolean> {
+    const url = `http://${node.address}:${node.distributedPort}/request-vote`;
+    const body = {
+      candidateTerm: this.currentTerm,
+      candidateId: this.node.uuid,
+    };
+
     try {
-      await Promise.all(requestPromises);
-      console.log(`${positiveResponses} out of ${totalNodes} nodes responded.`);
-    } catch (error) {
-      if (error.message !== "Stop Promise.all") {
-        console.error("At least one GET request failed:", error.message);
+      const response = await axios.put(url, body);
+      positiveResponses.count += 1;
+
+      if (positiveResponses.count >= requiredPositiveResponses && !positiveResponses.done) {
+        console.log(`${this.node.uuid} elected itself as the new leader`);
+        this.state = RaftState.LEADER;
+        this.inElection = false;
+        this.node.assumeLeadership();
+        positiveResponses.done = true;
       }
+
+      return true;
+    } catch (error) {
+      console.error(error.message);
+      return false;
     }
   }
 
   public getAliveNodes() {
-    const totalNodes = this.node.networkNodes.filter((node) => node.alive && node.uuid != this.node.uuid);
+    const totalNodes = this.node.networkNodes.filter((node) => node.alive);
     return totalNodes;
   }
 

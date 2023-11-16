@@ -83,7 +83,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     // Logic for leaving a network
     await node.acceptLeaveNetwork(request.body);
 
-    return { message: "Network started successfully" };
+    return { message: "Removed node successfully" };
   });
 
   /*
@@ -128,7 +128,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
   Leadership Routes
    These routes are for leadership elections and proposal 
   */
-  mainServer.get("/request-vote", async (request, reply) => {
+  mainServer.put("/request-vote", async (request, reply) => {
     if (!node.inNetwork) {
       return reply.code(400).send({ error: "Not in a network" });
     }
@@ -136,8 +136,13 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       return reply.code(400).send({ error: "This is a primary node!" });
     }
     //Recieved heartbeat from the primary so its good
-
-    return { message: "Voted" };
+    const { candidateTerm, candidateId } = request.body;
+    const result = node.handleRequestVote(candidateTerm, candidateId);
+    if (result.accepted) {
+      return reply.code(200).send(result);
+    } else {
+      return reply.code(400).send(result);
+    }
   });
 
   // Have new primary send this after it has garner enough votes
@@ -148,8 +153,8 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     if (node.isPrimaryNode) {
       return reply.code(400).send({ error: "This is a primary node!" });
     }
-    //Recieved heartbeat from the primary so its good
-
+    //End election timeout and reinitiate all routines
+    node.accepteLeadership(request.body);
     return { message: "New Leader Accepted" };
   });
 };

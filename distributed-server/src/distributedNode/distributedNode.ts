@@ -103,8 +103,8 @@ export class DistributedServerNode {
       if (ENV != "dev") {
         this.initMCServerApplication();
       }
-      this.initRsyncServer();
     }
+    this.initRsyncServer();
     this.initProcesses();
   }
 
@@ -185,7 +185,6 @@ export class DistributedServerNode {
 
   public getServerInformation() {
     console.log("getting server info");
-    this.RAFTConsensus.startElection();
     const raftState = this.RAFTConsensus.saveFile();
     return {
       node: this.selfNode,
@@ -223,8 +222,7 @@ export class DistributedServerNode {
     this.initRoutines();
     this.saveToFile();
 
-    // this.initMCServerApplication();
-    this.initRsyncServer();
+    this.initMCServerApplication();
   }
   public async requestNetwork({ address }) {
     const requestURL = `${address}/join-network`;
@@ -296,7 +294,6 @@ export class DistributedServerNode {
     const indexToRemove = this.networkNodes.findIndex((node) => node.uuid === uuid);
     if (indexToRemove !== -1) {
       this.networkNodes.splice(indexToRemove, 1);
-      console.log(`Network node with UUID ${uuid} removed successfully.`);
     } else {
       console.warn(`Network node with UUID ${uuid} not found.`);
     }
@@ -330,13 +327,25 @@ export class DistributedServerNode {
   // RSYNC
   public syncWorlds() {
     if (ENV == "dev") {
-      this.rSyncClient.run(`rsync -avz --delete ../minecraft-server/world ./test/worlds/${this.uuid}`);
-      this.rSyncClient.run(`rsync -avz --delete ../minecraft-server/world_nether ./test/worlds/${this.uuid}`);
-      this.rSyncClient.run(`rsync -avz --delete ../minecraft-server/world_the_end ./test/worlds/${this.uuid}`);
+      this.rSyncClient.run(
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ./test/worlds/${this.uuid}`
+      );
+      this.rSyncClient.run(
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ./test/worlds/${this.uuid}`
+      );
+      this.rSyncClient.run(
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ./test/worlds/${this.uuid}`
+      );
     } else {
-      this.rSyncClient.run(`rsync -avz --delete ../minecraft-server/world ../minecraft-server`);
-      this.rSyncClient.run(`rsync -avz --delete ../minecraft-server/world_nether ../minecraft-server`);
-      this.rSyncClient.run(`rsync -avz --delete ../minecraft-server/world_end ../minecraft-server`);
+      this.rSyncClient.run(
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ../minecraft-server`
+      );
+      this.rSyncClient.run(
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ../minecraft-server`
+      );
+      this.rSyncClient.run(
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_end ../minecraft-server`
+      );
     }
   }
 
@@ -345,7 +354,7 @@ export class DistributedServerNode {
   public initRoutines() {
     this.resetRoutines();
     this.initHeartbeatRoutine();
-    //this.initReplicationRoutine();
+    this.initReplicationRoutine();
     console.log(`Complete Routine Setup for ${this.uuid}`);
   }
 
@@ -432,23 +441,82 @@ export class DistributedServerNode {
     }
   }
 
-  public handlePrimaryFailure() {
+  public async handlePrimaryFailure() {
     console.log("Primary failure detected");
     if (this.primaryNode) {
       this.primaryNode.alive = false;
     }
+    clearInterval(this.heartbeatTimerId);
+    const baseDelay = Math.pow(2, 3) * 100;
+    const randomFactor = Math.random() + 0.5; // Adjust the range of randomness as needed
+    const electionDelay = Math.min(baseDelay * randomFactor, 15000);
+    await sleep(electionDelay);
 
     this.RAFTConsensus.startElection();
   }
 
   public resetHeartbeatTimer() {
     try {
-      clearInterval(this.heartbeatTimerId);
+      if (this.heartbeatTimerId) {
+        clearInterval(this.heartbeatTimerId);
+      }
       this.heartbeatTimerId = setInterval(() => {
         this.handlePrimaryFailure();
       }, HEARTBEAT_TIMER);
     } catch (error) {
       console.error("An error occurred while resetting the heartbeat timer:", error);
+    }
+  }
+
+  public handleRequestVote(candidateTerm, candidateId) {
+    return this.RAFTConsensus.requestVoteHandler(candidateTerm, candidateId);
+  }
+
+  public async assumeLeadership() {
+    this.isPrimaryNode = true;
+    this.updateSelfNode();
+    this.removeNetworkNode(this.uuid);
+    this.networkNodes.push(this.selfNode);
+    this.primaryNode = this.findPrimaryNode();
+    this.initRoutines();
+    await this.propagateLeadershipNotification();
+  }
+
+  public accepteLeadership(data) {
+    this.RAFTConsensus.clearElectionTimeout();
+    this.networkNodes = data;
+    this.primaryNode = this.findPrimaryNode();
+    this.rSyncClient = new RSyncClient({
+      host: this.primaryNode.address,
+      port: this.primaryNode.rsyncPort,
+      username: "username",
+      privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
+    });
+    this.initRoutines();
+    this.saveToFile();
+  }
+
+  private sendLeadershipNotification(node: DistributedNode): Promise<void> {
+    const url = `http://${node.address}:${node.distributedPort}/new-leader`;
+    return axios
+      .post(url, this.networkNodes)
+      .then(() => {})
+      .catch((error: AxiosError) => {});
+  }
+
+  public async propagateLeadershipNotification(): Promise<void> {
+    const requestPromises = this.networkNodes.map((node) => {
+      // Dont send to itself
+      if (node.uuid != this.uuid && node.alive) {
+        this.sendLeadershipNotification(node);
+      }
+    });
+
+    try {
+      await Promise.all(requestPromises);
+      console.log("Notified all alive node of its leadership");
+    } catch (error) {
+      console.error("At least one PUT request failed:", error.message);
     }
   }
 }
@@ -478,4 +546,8 @@ export function loadFromFile(): DistributedServerNode | null {
     console.error("Error reading/parsing DistributedServerNode from file:", err);
     return null;
   }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

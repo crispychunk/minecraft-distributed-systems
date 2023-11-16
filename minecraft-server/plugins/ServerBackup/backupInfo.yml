@@ -1,0 +1,43 @@
+Data:
+  world:
+    Chunk:
+      r:
+        '-1':
+          '-1':
+            mca: !!org.bukkit.craftbukkit.v1_20_R2.CraftWorld
+              PVP: true
+              ambientSpawnLimit: 15
+              animalSpawnLimit: 10
+              autoSave: true
+              clearWeatherDuration: 0
+              difficulty: {}
+              fullTime: 204201
+              hardcore: false
+              keepSpawnInMemory: true
+              monsterSpawnLimit: 70
+              thunderDuration: 7132
+              thundering: false
+              time: 12201
+              waterAmbientSpawnLimit: 20
+              waterAnimalSpawnLimit: 5
+              waterUndergroundCreatureSpawnLimit: 5
+              weatherDuration: 69618
+          '0':
+            mca: !!org.bukkit.craftbukkit.v1_20_R2.CraftWorld
+              PVP: true
+              ambientSpawnLimit: 15
+              animalSpawnLimit: 10
+              autoSave: true
+              clearWeatherDuration: 0
+              difficulty: {}
+              fullTime: 204201
+              hardcore: false
+              keepSpawnInMemory: true
+              monsterSpawnLimit: 70
+              thunderDuration: 7132
+              thundering: false
+              time: 12201
+              waterAmbientSpawnLimit: 20
+              waterAnimalSpawnLimit: 5
+              waterUndergroundCreatureSpawnLimit: 5
+              weatherDuration: 69618

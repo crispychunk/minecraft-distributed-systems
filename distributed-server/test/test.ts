@@ -10,3 +10,6 @@ newNode.start();
 
 const newNode2 = new DistributedServerNode("localhost", 8090, 8091, null, null, null, null, null, 0, null);
 newNode2.start();
+
+const newNode3 = new DistributedServerNode("localhost", 8092, 8093, null, null, null, null, null, 0, null);
+newNode3.start();
