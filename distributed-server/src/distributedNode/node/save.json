@@ -1,49 +1,49 @@
 {
-  "mainPort": 8090,
-  "rsyncPort": 8091,
+  "mainPort": 8092,
+  "rsyncPort": 8093,
   "minecraftPort": null,
   "address": "localhost",
   "isPrimaryNode": false,
   "inNetwork": true,
   "networkNodes": [
     {
-      "uuid": "e805236b-428a-4af8-81cb-260117799e9c",
+      "uuid": "eac6cfd3-07ad-4f9a-a69f-cfa53850c625",
       "address": "localhost",
-      "distributedPort": 8090,
-      "rsyncPort": 8091,
-      "minecraftPort": null,
-      "alive": true,
-      "isPrimary": false,
-      "rSyncTerm": 0
-    },
-    {
-      "uuid": "7456b9f7-1988-44b9-933f-7349ac578da0",
-      "address": "localhost",
-      "distributedPort": 8082,
-      "rsyncPort": 8083,
+      "distributedPort": 8080,
+      "rsyncPort": 8081,
       "minecraftPort": null,
       "alive": true,
       "isPrimary": true,
       "rSyncTerm": 0
+    },
+    {
+      "uuid": "9da3acb1-872a-4824-8918-4e105e251181",
+      "address": "localhost",
+      "distributedPort": 8092,
+      "rsyncPort": 8093,
+      "minecraftPort": null,
+      "alive": true,
+      "isPrimary": false,
+      "rSyncTerm": 0
     }
   ],
-  "uuid": "e805236b-428a-4af8-81cb-260117799e9c",
+  "uuid": "9da3acb1-872a-4824-8918-4e105e251181",
   "rSyncTerm": 0,
   "primaryNode": {
-    "uuid": "7456b9f7-1988-44b9-933f-7349ac578da0",
+    "uuid": "eac6cfd3-07ad-4f9a-a69f-cfa53850c625",
     "address": "localhost",
-    "distributedPort": 8082,
-    "rsyncPort": 8083,
+    "distributedPort": 8080,
+    "rsyncPort": 8081,
     "minecraftPort": null,
     "alive": true,
     "isPrimary": true,
     "rSyncTerm": 0
   },
   "selfNode": {
-    "uuid": "e805236b-428a-4af8-81cb-260117799e9c",
+    "uuid": "9da3acb1-872a-4824-8918-4e105e251181",
     "address": "localhost",
-    "distributedPort": 8090,
-    "rsyncPort": 8091,
+    "distributedPort": 8092,
+    "rsyncPort": 8093,
     "minecraftPort": null,
     "alive": true,
     "isPrimary": false,
@@ -51,8 +51,8 @@
   },
   "alive": true,
   "raftSave": {
-    "currentTerm": 1,
-    "votedFor": "66de25db-ca14-4916-8433-5bcd515d1dcf",
+    "currentTerm": 0,
+    "votedFor": null,
     "state": "follower"
   }
 }

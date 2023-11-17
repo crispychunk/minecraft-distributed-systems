@@ -17,8 +17,9 @@ export class MinecraftServerAdaptor {
     );
 
     // Create the command and its arguments separately
-    const command: string = "cmd";
-    const argument: string = `/c start.bat`;
+    const command: string = process.platform === 'win32' ? 'cmd' : 'sh';
+    const argument: string = process.platform === 'win32' ? '/c start.bat' : 'start.sh';
+    
 
     const processOptions = {
       cwd: serverFolder,
