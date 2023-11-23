@@ -1,20 +1,18 @@
-import { Server, utils } from "ssh2";
+import { Server, utils, Connection } from "ssh2";
 import { timingSafeEqual } from "crypto";
 import { readFileSync } from "fs";
-import { inspect } from "util";
 
 export class RSyncServer {
   private server: Server;
   private allowedUser: Buffer;
   private allowedPassword: Buffer;
   private allowedPubKey: utils.Key;
+  private activeConnections: Connection[] = [];
 
   constructor() {
     this.allowedUser = Buffer.from("username");
     this.allowedPassword = Buffer.from("password");
-    this.allowedPubKey = utils.parseKey(
-      readFileSync("./src/rsync/ssh/minecraftServer.pub")
-    );
+    this.allowedPubKey = utils.parseKey(readFileSync("./src/rsync/ssh/minecraftServer.pub"));
 
     this.server = new Server(
       {
@@ -33,8 +31,10 @@ export class RSyncServer {
     return !autoReject && isMatch;
   }
 
-  private handleConnection(client: Server): void {
+  private handleConnection(client: Connection): void {
     console.log("Client connected!");
+
+    this.activeConnections.push(client);
 
     client
       .on("authentication", (ctx) => {
@@ -46,25 +46,15 @@ export class RSyncServer {
 
         switch (ctx.method) {
           case "password":
-            if (
-              !this.checkValue(Buffer.from(ctx.password), this.allowedPassword)
-            ) {
+            if (!this.checkValue(Buffer.from(ctx.password), this.allowedPassword)) {
               return ctx.reject();
             }
             break;
           case "publickey":
             if (
               ctx.key.algo !== this.allowedPubKey.type ||
-              !this.checkValue(
-                ctx.key.data,
-                this.allowedPubKey.getPublicSSH()
-              ) ||
-              (ctx.signature &&
-                this.allowedPubKey.verify(
-                  ctx.blob,
-                  ctx.signature,
-                  ctx.hashAlgo
-                ) !== true)
+              !this.checkValue(ctx.key.data, this.allowedPubKey.getPublicSSH()) ||
+              (ctx.signature && this.allowedPubKey.verify(ctx.blob, ctx.signature, ctx.hashAlgo) !== true)
             ) {
               return ctx.reject();
             }
@@ -81,7 +71,6 @@ export class RSyncServer {
       })
       .on("ready", () => {
         console.log("Client authenticated!");
-
         client.on("session", (accept, reject) => {
           const session = accept();
           session.once("exec", (accept, reject, info) => {
@@ -101,9 +90,7 @@ export class RSyncServer {
               // Handle errors and close the stream when the command finishes
               childProcess.on("error", (error) => {
                 console.error(`Error executing rsync: ${error.message}`);
-                stream.stderr.write(
-                  `Error executing rsync: ${error.message}\n`
-                );
+                stream.stderr.write(`Error executing rsync: ${error.message}\n`);
               });
 
               childProcess.on("close", (code) => {
@@ -118,27 +105,45 @@ export class RSyncServer {
           });
         });
       })
-      .on("pty", (accept, reject, info) => {
-        console.log(
-          `PTY request received: ${info.term} ${info.cols} cols, ${info.rows} rows`
-        );
-        accept();
-      })
-      .on("close", () => {
-        console.log("Client disconnected");
+      .on("end", () => {
+        const index = this.activeConnections.indexOf(client);
+        if (index !== -1) {
+          this.activeConnections.splice(index, 1);
+        }
       });
   }
 
-  public startServer(port, address): void {
-    this.server.listen(port, address, () => {
-      console.log("Listening on port " + this.server.address().port);
+  public startServer(port: number, address: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.server.listen(port, address, () => {
+        const serverPort = this.server.address().port;
+        console.log(`Listening on port ${serverPort}`);
+        resolve();
+      });
+
+      this.server.on("error", (error) => {
+        reject(error);
+      });
     });
   }
 
-  public async stopServer() {
-    console.log("stopping SSH server");
-    await this.server.close(() => {
-      console.log("Server stopped");
+  public stopServer(): Promise<void> {
+    console.log("Stopping SSH server");
+    return new Promise((resolve, reject) => {
+      // Close all active connections
+      this.activeConnections.forEach((connection) => {
+        connection.end();
+      });
+
+      this.server.close((error) => {
+        if (error) {
+          console.error(`Error stopping server: ${error}`);
+          reject(error);
+        } else {
+          console.log("SSH Server stopped");
+          resolve();
+        }
+      });
     });
   }
 }

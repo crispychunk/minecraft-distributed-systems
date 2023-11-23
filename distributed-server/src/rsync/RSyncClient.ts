@@ -5,18 +5,25 @@ export class RSyncClient {
 
   constructor(private connectOptions: ssh2.ConnectConfig) {
     this.conn = new ssh2.Client();
-    this.setupConnection();
   }
 
-  private setupConnection(): void {
-    this.conn
-      .on("ready", () => {
-        console.log("SSH connection established");
-      })
-      .on("error", (err) => {
-        console.error(`Error: ${err.message}`);
-      })
-      .connect(this.connectOptions);
+  private setupConnection(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.conn
+        .on("ready", () => {
+          console.log("SSH connection established");
+          resolve();
+        })
+        .on("error", (err) => {
+          console.error(`Error: ${err.message}`);
+          reject(err);
+        })
+        .connect(this.connectOptions);
+    });
+  }
+
+  public async connect(): Promise<void> {
+    await this.setupConnection();
   }
 
   public run(command: string, callback?: (error: Error | null, result: string) => void): void {

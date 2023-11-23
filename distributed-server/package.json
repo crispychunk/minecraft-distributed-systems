@@ -6,7 +6,8 @@
   "scripts": {
     "start": "ts-node src/main.ts",
     "client": "ts-node src/clientTest.ts",
-    "test": "ts-node test/test.ts",
+    "test": "ts-node test/example.ts",
+    "jest": "jest",
     "gui": "electron src/gui.ts",
     "build": "tsc"
   },

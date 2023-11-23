@@ -10,20 +10,21 @@ import { clearInterval } from "timers";
 import { RSyncClient } from "../rsync/RSyncClient";
 import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMER, RSYNC_INTERVAL } from "./node/timers";
 import { RAFTconsensus } from "./RAFTconsensus";
+import { clear } from "console";
 const FILEPATH = "./src/distributedNode/node/save.json";
-const ENV = "dev";
+let ENV = "prod";
 export class DistributedServerNode {
   // Network
-  private mainPort: number;
-  private rsyncPort: number;
-  private minecraftPort: number;
-  private address: string;
+  public mainPort: number;
+  public rsyncPort: number;
+  public minecraftPort: number;
+  public address: string;
 
   // Main Server
-  private mainServer: any;
+  public mainServer: any;
 
   // RSync Server
-  private rSyncServer: RSyncServer;
+  public rSyncServer: RSyncServer;
 
   // Internal data
   public isPrimaryNode: boolean;
@@ -37,17 +38,17 @@ export class DistributedServerNode {
   // Interal function data
 
   // Routine IDs
-  private hearbeatId: any;
-  private rSyncId: any;
-  private heartbeatTimerId: any;
+  public hearbeatId: any;
+  public rSyncId: any;
+  public heartbeatTimerId: any;
 
   // Rsync information
-  private rSyncClient: RSyncClient;
-  private rSyncTerm: number;
+  public rSyncClient: RSyncClient;
+  public rSyncTerm: number;
 
   // Raft Consensus
-  private raftSave: RAFTSave;
-  private RAFTConsensus: RAFTconsensus;
+  public raftSave: RAFTSave;
+  public RAFTConsensus: RAFTconsensus;
 
   constructor(
     address: string,
@@ -95,37 +96,76 @@ export class DistributedServerNode {
     this.primaryNode = this.findPrimaryNode();
   }
 
-  public start(): void {
-    this.initDistributedServer();
+  public async start() {
+    await this.initDistributedServer();
     this.initRoutines();
     if (this.isPrimaryNode) {
+      await this.initRsyncServer();
       // No need to init mc server
       if (ENV != "dev") {
         this.initMCServerApplication();
       }
     }
-    this.initRsyncServer();
     this.initProcesses();
   }
 
-  private initDistributedServer(): void {
-    this.mainServer = fastify();
-    // Init RAFT
-    this.RAFTConsensus = new RAFTconsensus(
-      this.raftSave.currentTerm,
-      this.raftSave.votedFor,
-      this.raftSave.state,
-      this
-    );
-    // Define a route
-    routes(this.mainServer, this);
-    // Start the server on the specified port
-    this.mainServer.listen({ port: this.mainPort }, (err, address) => {
-      if (err) {
-        console.error(err);
-        process.exit(1);
-      }
-      console.log(`Server listening at ${address}`);
+  public async stop(): Promise<void> {
+    // Stop your routines and clear intervals
+    this.resetRoutines();
+
+    const closeServer = () => {
+      return new Promise<void>((resolve) => {
+        this.mainServer.close((err) => {
+          if (err) {
+            console.error("Error while stopping the main server:", err);
+          } else {
+            console.log("Main server stopped.");
+          }
+          resolve();
+        });
+      });
+    };
+
+    // Stop the main server asynchronously
+    await closeServer();
+
+    if (this.inNetwork && !this.isPrimaryNode) {
+      this.rSyncClient.endConnection();
+    }
+
+    // Stop the Minecraft server and RSync server
+    if (this.isPrimaryNode) {
+      MinecraftServerAdaptor.shutdownMinecraftServer();
+      await this.rSyncServer.stopServer();
+    }
+    console.log("Server stopped");
+  }
+
+  private async initDistributedServer(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.mainServer = fastify();
+
+      // Init RAFT
+      this.RAFTConsensus = new RAFTconsensus(
+        this.raftSave.currentTerm,
+        this.raftSave.votedFor,
+        this.raftSave.state,
+        this
+      );
+
+      // Define a route
+      routes(this.mainServer, this);
+
+      // Start the server on the specified port
+      this.mainServer.listen({ port: this.mainPort }, async (err, address) => {
+        if (err) {
+          console.error(err);
+          reject(err);
+        } else {
+          console.log(`Server listening at ${address}`);
+          resolve();
+        }
+      });
     });
   }
 
@@ -133,26 +173,46 @@ export class DistributedServerNode {
     MinecraftServerAdaptor.startMinecraftServer("../minecraft-server");
   }
 
-  private initRsyncServer(): void {
-    this.rSyncServer = new RSyncServer();
-    this.rSyncServer.startServer(this.rsyncPort, "localhost");
+  private async initRsyncServer(): Promise<void> {
+    return new Promise<void>(async (resolve, reject) => {
+      this.rSyncServer = new RSyncServer();
+      console.log("Initiating RSync Server");
+
+      try {
+        await this.rSyncServer.startServer(this.rsyncPort, this.address);
+        console.log("Rsync Server started successfully");
+        resolve();
+      } catch (error) {
+        console.error(`Error starting server: ${error}`);
+        reject(error);
+      }
+    });
   }
 
   private initProcesses() {
     process.on("beforeExit", async () => {
       await MinecraftServerAdaptor.shutdownMinecraftServer();
-      await this.rSyncServer.stopServer();
+      if (this.isPrimaryNode) {
+        await this.rSyncServer.stopServer();
+        await MinecraftServerAdaptor.shutdownMinecraftServer();
+      }
     });
 
     process.on("SIGINT", async () => {
       await MinecraftServerAdaptor.shutdownMinecraftServer();
-      await this.rSyncServer.stopServer();
+      if (this.isPrimaryNode) {
+        await this.rSyncServer.stopServer();
+        await MinecraftServerAdaptor.shutdownMinecraftServer();
+      }
       process.exit(1);
     });
 
     process.on("SIGTERM", async () => {
       await MinecraftServerAdaptor.shutdownMinecraftServer();
-      await this.rSyncServer.stopServer();
+      if (this.isPrimaryNode) {
+        await this.rSyncServer.stopServer();
+        await MinecraftServerAdaptor.shutdownMinecraftServer();
+      }
       process.exit(1);
     });
   }
@@ -210,7 +270,7 @@ export class DistributedServerNode {
   // Distributed Node functions
 
   // NETWORK JOINING AND LEAVING
-  public createNetwork() {
+  public async createNetwork() {
     this.isPrimaryNode = true;
     this.inNetwork = true;
     this.uuid = uuidv4();
@@ -219,11 +279,12 @@ export class DistributedServerNode {
     this.updateSelfNode();
     this.networkNodes = [this.selfNode];
     this.primaryNode = this.findPrimaryNode();
+    await this.initRsyncServer();
     this.initRoutines();
     this.saveToFile();
-
     this.initMCServerApplication();
   }
+
   public async requestNetwork({ address }) {
     const requestURL = `${address}/join-network`;
     this.uuid = uuidv4();
@@ -244,6 +305,7 @@ export class DistributedServerNode {
         username: "username",
         privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
       });
+      await this.rSyncClient.connect();
       this.RAFTConsensus = new RAFTconsensus(
         this.raftSave.currentTerm,
         this.raftSave.votedFor,
@@ -260,12 +322,17 @@ export class DistributedServerNode {
   }
   public acceptJoinNetwork(node: DistributedNode) {
     this.networkNodes.push(node);
+    // Propogate all nodes to network
+    this.propagateNetworkNodeList();
     return this.networkNodes;
   }
   public async requestLeaveNetwork() {
     // If it is primary, remove itself from all other nodes in the server
     if (this.isPrimaryNode) {
       await this.acceptLeaveNetwork(this.selfNode);
+      await this.rSyncServer.stopServer();
+      MinecraftServerAdaptor.shutdownMinecraftServer();
+      console.log("Complete shupdown of processes");
     } else {
       // If not, tell primary to remove itself from all other nodes in the server
       const requestURL = `http://${this.primaryNode.address}:${this.primaryNode.distributedPort}/leave-network`;
@@ -276,6 +343,7 @@ export class DistributedServerNode {
         // Handle the error
         console.error("Error joining network:", error.message);
       }
+      this.rSyncClient.endConnection();
     }
 
     this.primaryNode = null;
@@ -288,7 +356,7 @@ export class DistributedServerNode {
   }
   public async acceptLeaveNetwork(node: DistributedNode) {
     this.removeNetworkNode(node.uuid);
-    await this.propagateNetworkNodeList();
+    this.propagateNetworkNodeList();
   }
   public removeNetworkNode(uuid: string) {
     const indexToRemove = this.networkNodes.findIndex((node) => node.uuid === uuid);
@@ -361,6 +429,7 @@ export class DistributedServerNode {
   public resetRoutines() {
     this.rSyncId && clearInterval(this.rSyncId);
     this.hearbeatId && clearInterval(this.hearbeatId);
+    this.heartbeatTimerId && clearInterval(this.heartbeatTimerId);
   }
 
   // Only primary send to other
@@ -480,9 +549,12 @@ export class DistributedServerNode {
     this.primaryNode = this.findPrimaryNode();
     this.initRoutines();
     await this.propagateLeadershipNotification();
+    // Boot up minecraft server and ssh server;
+    await this.initRsyncServer();
+    this.initMCServerApplication();
   }
 
-  public accepteLeadership(data) {
+  public async accepteLeadership(data) {
     this.RAFTConsensus.clearElectionTimeout();
     this.networkNodes = data;
     this.primaryNode = this.findPrimaryNode();
@@ -492,6 +564,7 @@ export class DistributedServerNode {
       username: "username",
       privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
     });
+    await this.rSyncClient.connect();
     this.initRoutines();
     this.saveToFile();
   }
@@ -506,7 +579,6 @@ export class DistributedServerNode {
 
   public async propagateLeadershipNotification(): Promise<void> {
     const requestPromises = this.networkNodes.map((node) => {
-      // Dont send to itself
       if (node.uuid != this.uuid && node.alive) {
         this.sendLeadershipNotification(node);
       }

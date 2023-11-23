@@ -67,7 +67,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       return reply.code(400).send({ error: "Already not in the network" });
     }
     // Logic for leaving a network
-    await node.requestLeaveNetwork();
+    node.requestLeaveNetwork();
 
     return { message: "Network left successfully" };
   });

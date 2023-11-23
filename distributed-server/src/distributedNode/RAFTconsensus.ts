@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { DistributedNode, RAFTSave, RaftState } from "./node/distributedNodeInterface";
 import { DistributedServerNode } from "./distributedNode";
+import { RAFT_ELECTION_TIMER } from "./node/timers";
 
 interface LogEntry {
   term: number;
@@ -59,7 +60,7 @@ export class RAFTconsensus {
     // Set a new timeout for 10 seconds
     this.electionTimeoutId = setTimeout(() => {
       this.handleElectionTimeout();
-    }, 10000); // 10 seconds in milliseconds
+    }, RAFT_ELECTION_TIMER);
   }
 
   private handleElectionTimeout() {

@@ -10,8 +10,9 @@ function main() {
   let node: DistributedServerNode = loadFromFile();
   if (node == null) {
     console.log("creating new node");
-    node = new DistributedServerNode(address, httpPort, rSyncPort, minecraftPort, null, null, null, null, null);
+    node = new DistributedServerNode(address, httpPort, rSyncPort, minecraftPort, null, null, null, null, null, null);
   }
+  node.start();
   console.log("Distributed node up!"); // Print a message to the console
 }
 

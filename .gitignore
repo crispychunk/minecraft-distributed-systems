@@ -3,5 +3,7 @@
 **/target
 **/out
 **/package-lock.json
-
 **/worlds/**
+
+minecraft-server/world
+minecraft-server/
