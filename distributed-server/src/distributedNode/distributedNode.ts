@@ -12,7 +12,7 @@ import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMER, RSYNC_INTERVAL } from "./node/time
 import { RAFTconsensus } from "./RAFTconsensus";
 import { clear } from "console";
 const FILEPATH = "./src/distributedNode/node/save.json";
-let ENV = "dev";
+let ENV = "prod";
 export class DistributedServerNode {
   // Network
   public mainPort: number;
