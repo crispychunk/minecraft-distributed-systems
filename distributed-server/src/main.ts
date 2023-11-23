@@ -21,7 +21,6 @@ function main() {
   // Find public IP
   const localIpAddress = getLocalIpAddress();
   const address: string = localIpAddress;
-  console.log(localIpAddress);
   const httpPort: number = 8080;
   const rSyncPort: number = 8081;
   const minecraftPort: number = 8082;
