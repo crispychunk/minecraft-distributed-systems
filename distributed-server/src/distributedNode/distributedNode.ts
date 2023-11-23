@@ -157,7 +157,7 @@ export class DistributedServerNode {
       routes(this.mainServer, this);
 
       // Start the server on the specified port
-      this.mainServer.listen({ port: this.mainPort }, async (err, address) => {
+      this.mainServer.listen(this.mainPort, this.address, async (err, address) => {
         if (err) {
           console.error(err);
           reject(err);

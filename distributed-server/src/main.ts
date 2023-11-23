@@ -1,26 +1,33 @@
 import { DistributedServerNode, loadFromFile } from "./distributedNode/distributedNode";
-import { networkInterfaces } from "os";
+import os from "os";
 
-function getLocalIpAddress(): string | null {
-  const interfaces = networkInterfaces();
-  const addresses: string[] = [];
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  let localIP = null;
 
-  Object.keys(interfaces).forEach((ifname) => {
-    interfaces[ifname]?.forEach((iface) => {
-      if ("IPv4" === iface.family && !iface.internal) {
-        addresses.push(iface.address);
+  Object.keys(interfaces).forEach((interfaceName) => {
+    const interfaceInfo = interfaces[interfaceName];
+
+    for (const iface of interfaceInfo) {
+      // Skip over internal (i.e., 127.0.0.1) and non-IPv4 addresses
+      if (iface.family === "IPv4" && !iface.internal) {
+        localIP = iface.address;
+        break;
       }
-    });
+    }
   });
 
-  return addresses.length > 0 ? addresses[0] : null;
+  return localIP;
 }
+
+const lanIP = getLocalIP();
 
 function main() {
   // Initialize networks
   // Find public IP
-  const localIpAddress = getLocalIpAddress();
+  const localIpAddress = getLocalIP();
   const address: string = localIpAddress;
+  console.log(address);
   const httpPort: number = 8080;
   const rSyncPort: number = 8081;
   const minecraftPort: number = 8082;
