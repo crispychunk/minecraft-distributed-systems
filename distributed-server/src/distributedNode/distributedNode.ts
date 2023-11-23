@@ -12,7 +12,7 @@ import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMER, RSYNC_INTERVAL } from "./node/time
 import { RAFTconsensus } from "./RAFTconsensus";
 import { clear } from "console";
 const FILEPATH = "./src/distributedNode/node/save.json";
-let ENV = "prod";
+let ENV = "dev";
 export class DistributedServerNode {
   // Network
   public mainPort: number;
@@ -396,23 +396,23 @@ export class DistributedServerNode {
   public syncWorlds() {
     if (ENV == "dev") {
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ./test/worlds/${this.uuid}`
+        `rsync -avz --delete --progress --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ./test/worlds/${this.uuid}`
       );
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ./test/worlds/${this.uuid}`
+        `rsync -avz --delete --progress --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ./test/worlds/${this.uuid}`
       );
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ./test/worlds/${this.uuid}`
+        `rsync -avz --delete --progress --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ./test/worlds/${this.uuid}`
       );
     } else {
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ../minecraft-server`
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ../minecraft-server/backup`
       );
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ../minecraft-server`
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ../minecraft-server/backup`
       );
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ../minecraft-server`
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ../minecraft-server/backup`
       );
     }
   }

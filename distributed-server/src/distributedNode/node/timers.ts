@@ -1,4 +1,4 @@
-const DEV = false;
+const DEV = true;
 
 const BASETIMER = 5000;
 const RSYNC_INTERVAL = DEV ? 2000 : 180000;
