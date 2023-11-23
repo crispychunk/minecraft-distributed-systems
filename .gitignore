@@ -6,4 +6,7 @@
 **/worlds/**
 
 minecraft-server/world
-minecraft-server/
+minecraft-server/world_nether
+minecraft-server/world_the_end
+minecraft-server/logs
+distributed-server/src/**/save.json
