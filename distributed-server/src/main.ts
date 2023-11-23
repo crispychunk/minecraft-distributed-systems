@@ -1,31 +1,27 @@
 import { DistributedServerNode, loadFromFile } from "./distributedNode/distributedNode";
 import os from "os";
 
-function getLocalIP() {
+function getLocalIPv4Address(): string | null {
   const interfaces = os.networkInterfaces();
-  let localIP = null;
 
-  Object.keys(interfaces).forEach((interfaceName) => {
+  for (const interfaceName in interfaces) {
     const interfaceInfo = interfaces[interfaceName];
 
     for (const iface of interfaceInfo) {
-      // Skip over internal (i.e., 127.0.0.1) and non-IPv4 addresses
-      if (iface.family === "IPv4" && !iface.internal) {
-        localIP = iface.address;
-        break;
+      // Check for IPv4 and exclude loopback and internal addresses
+      if (iface.family === "IPv4" && !iface.internal && iface.address !== "127.0.0.1") {
+        return iface.address;
       }
     }
-  });
+  }
 
-  return localIP;
+  return null;
 }
-
-const lanIP = getLocalIP();
 
 function main() {
   // Initialize networks
   // Find public IP
-  const localIpAddress = getLocalIP();
+  const localIpAddress = getLocalIPv4Address();
   const address: string = localIpAddress;
   console.log(address);
   const httpPort: number = 8080;
