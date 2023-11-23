@@ -412,7 +412,7 @@ export class DistributedServerNode {
         `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ../minecraft-server`
       );
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_end ../minecraft-server`
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ../minecraft-server`
       );
     }
   }
