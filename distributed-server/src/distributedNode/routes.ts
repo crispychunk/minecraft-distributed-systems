@@ -116,8 +116,9 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       const { event, filePath, fileContent } = request.body;
       const directoryPath = path.dirname(filePath);
       await fs.ensureDir(directoryPath);
+      const testPath = `./test/worlds/${path.basename(filePath)}`;
       const decodedFileContent = Buffer.from(fileContent, "base64");
-      fs.writeFileSync(filePath, decodedFileContent, "buffer");
+      fs.writeFileSync(filePath, decodedFileContent);
       reply.code(200).send({ message: "File change received and saved successfully" });
     } catch (error) {
       console.error("Error handling file change:", error.message);

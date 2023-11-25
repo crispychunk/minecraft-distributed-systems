@@ -45,12 +45,12 @@ export class FileWatcher {
       return;
     }
 
-    let fileContent: string | null = null;
+    let fileContent: any | null = null;
     let retryAttempts = 3; // Set the number of retry attempts
 
     while (retryAttempts > 0) {
       try {
-        fileContent = readFileSync(filePath, "utf-8");
+        fileContent = readFileSync(filePath);
         break; // Break out of the loop if read is successful
       } catch (error) {
         console.error(`Error reading file: ${filePath}`, error.message);
