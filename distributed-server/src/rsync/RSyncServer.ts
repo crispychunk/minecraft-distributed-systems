@@ -1,6 +1,7 @@
 import { Server, utils, Connection } from "ssh2";
 import { timingSafeEqual } from "crypto";
 import { readFileSync } from "fs";
+import { exec } from "child_process";
 
 export class RSyncServer {
   private server: Server;
@@ -75,16 +76,23 @@ export class RSyncServer {
           const session = accept();
           session.once("exec", (accept, reject, info) => {
             // Handle Rsync codes here
+
             if (info.command.startsWith("rsync")) {
               const stream = accept({ pty: true });
               stream.stderr.write("Rsync command detected\n");
 
               const rsyncCommand = info.command;
-              const childProcess = require("child_process").exec(rsyncCommand);
-
+              console.log(rsyncCommand);
+              const childProcess = exec(rsyncCommand);
+              stream.stderr.write("Rsync command executed\n");
               childProcess.stdout.on("data", (data) => {
                 console.log(data);
                 stream.write(data);
+              });
+
+              childProcess.stderr?.on("data", (data) => {
+                console.error(data);
+                stream.stderr.write(data);
               });
 
               // Handle errors and close the stream when the command finishes
@@ -97,6 +105,14 @@ export class RSyncServer {
                 console.log(`Rsync command executed with code ${code}`);
                 stream.exit(code);
                 stream.end();
+              });
+
+              stream.on("error", (error) => {
+                if (error.code === "ECONNRESET") {
+                  console.error("Connection reset by the client");
+                } else {
+                  console.error(`Stream error: ${error.message}`);
+                }
               });
             } else {
               const stream = reject(); // Reject non-rsync commands
@@ -115,7 +131,7 @@ export class RSyncServer {
 
   public startServer(port: number, address: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server.listen(port, address, () => {
+      this.server.listen(22, address, () => {
         const serverPort = this.server.address().port;
         console.log(`Listening on port ${serverPort}`);
         resolve();

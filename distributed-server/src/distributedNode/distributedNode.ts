@@ -11,6 +11,7 @@ import { RSyncClient } from "../rsync/RSyncClient";
 import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMER, RSYNC_INTERVAL } from "./node/timers";
 import { RAFTconsensus } from "./RAFTconsensus";
 import { clear } from "console";
+import { FileWatcher } from "../fileSync/worldFileSync";
 const FILEPATH = "./src/distributedNode/node/save.json";
 let ENV = "prod";
 export class DistributedServerNode {
@@ -25,6 +26,9 @@ export class DistributedServerNode {
 
   // RSync Server
   public rSyncServer: RSyncServer;
+
+  // Filewatcher
+  public fileWatcher: FileWatcher;
 
   // Internal data
   public isPrimaryNode: boolean;
@@ -100,10 +104,14 @@ export class DistributedServerNode {
     await this.initDistributedServer();
     this.initRoutines();
     if (this.isPrimaryNode) {
-      await this.initRsyncServer();
+      //await this.initRsyncServer();
       // No need to init mc server
       if (ENV != "dev") {
         this.initMCServerApplication();
+        this.fileWatcher = new FileWatcher(
+          ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
+          this
+        );
       }
     }
     this.initProcesses();
@@ -112,7 +120,6 @@ export class DistributedServerNode {
   public async stop(): Promise<void> {
     // Stop your routines and clear intervals
     this.resetRoutines();
-
     const closeServer = () => {
       return new Promise<void>((resolve) => {
         this.mainServer.close((err) => {
@@ -129,21 +136,24 @@ export class DistributedServerNode {
     // Stop the main server asynchronously
     await closeServer();
 
-    if (this.inNetwork && !this.isPrimaryNode) {
-      this.rSyncClient.endConnection();
-    }
+    // if (this.inNetwork && !this.isPrimaryNode) {
+    //   this.rSyncClient.endConnection();
+    // }
 
     // Stop the Minecraft server and RSync server
     if (this.isPrimaryNode) {
       MinecraftServerAdaptor.shutdownMinecraftServer();
-      await this.rSyncServer.stopServer();
+      this.fileWatcher.stopWatching();
+      //await this.rSyncServer.stopServer();
     }
     console.log("Server stopped");
   }
 
   private async initDistributedServer(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.mainServer = fastify();
+      this.mainServer = fastify({
+        bodyLimit: 500 * 1024 * 1024, // 10MB limit
+      });
 
       // Init RAFT
       this.RAFTConsensus = new RAFTconsensus(
@@ -193,7 +203,7 @@ export class DistributedServerNode {
     process.on("beforeExit", async () => {
       await MinecraftServerAdaptor.shutdownMinecraftServer();
       if (this.isPrimaryNode) {
-        await this.rSyncServer.stopServer();
+        //await this.rSyncServer.stopServer();
         await MinecraftServerAdaptor.shutdownMinecraftServer();
       }
     });
@@ -201,7 +211,7 @@ export class DistributedServerNode {
     process.on("SIGINT", async () => {
       await MinecraftServerAdaptor.shutdownMinecraftServer();
       if (this.isPrimaryNode) {
-        await this.rSyncServer.stopServer();
+        //await this.rSyncServer.stopServer();
         await MinecraftServerAdaptor.shutdownMinecraftServer();
       }
       process.exit(1);
@@ -210,7 +220,7 @@ export class DistributedServerNode {
     process.on("SIGTERM", async () => {
       await MinecraftServerAdaptor.shutdownMinecraftServer();
       if (this.isPrimaryNode) {
-        await this.rSyncServer.stopServer();
+        //await this.rSyncServer.stopServer();
         await MinecraftServerAdaptor.shutdownMinecraftServer();
       }
       process.exit(1);
@@ -279,7 +289,11 @@ export class DistributedServerNode {
     this.updateSelfNode();
     this.networkNodes = [this.selfNode];
     this.primaryNode = this.findPrimaryNode();
-    await this.initRsyncServer();
+    //await this.initRsyncServer();
+    this.fileWatcher = new FileWatcher(
+      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
+      this
+    );
     this.initRoutines();
     this.saveToFile();
     this.initMCServerApplication();
@@ -303,6 +317,7 @@ export class DistributedServerNode {
         host: this.primaryNode.address,
         port: this.primaryNode.rsyncPort,
         username: "username",
+        password: "password",
         privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
       });
       await this.rSyncClient.connect();
@@ -406,13 +421,13 @@ export class DistributedServerNode {
       );
     } else {
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ../minecraft-server/backup`
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore username@${this.address}:../minecraft-server/world ../minecraft-server/backup`
       );
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ../minecraft-server/backup`
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore username@${this.address}:../minecraft-server/world_nether ../minecraft-server/backup`
       );
       this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ../minecraft-server/backup`
+        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore username@${this.address}:../minecraft-server/world_the_end ../minecraft-server/backup`
       );
     }
   }
@@ -422,7 +437,7 @@ export class DistributedServerNode {
   public initRoutines() {
     this.resetRoutines();
     this.initHeartbeatRoutine();
-    this.initReplicationRoutine();
+    //this.initReplicationRoutine();
     console.log(`Complete Routine Setup for ${this.uuid}`);
   }
 
@@ -550,7 +565,11 @@ export class DistributedServerNode {
     this.initRoutines();
     await this.propagateLeadershipNotification();
     // Boot up minecraft server and ssh server;
-    await this.initRsyncServer();
+    //await this.initRsyncServer();
+    this.fileWatcher = new FileWatcher(
+      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
+      this
+    );
     this.initMCServerApplication();
   }
 
@@ -562,9 +581,10 @@ export class DistributedServerNode {
       host: this.primaryNode.address,
       port: this.primaryNode.rsyncPort,
       username: "username",
+      password: "password",
       privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
     });
-    await this.rSyncClient.connect();
+    //await this.rSyncClient.connect();
     this.initRoutines();
     this.saveToFile();
   }
