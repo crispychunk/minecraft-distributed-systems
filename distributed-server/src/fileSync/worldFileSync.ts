@@ -45,7 +45,26 @@ export class FileWatcher {
       return;
     }
 
-    const fileContent = readFileSync(filePath, "utf-8");
+    let fileContent: string | null = null;
+    let retryAttempts = 3; // Set the number of retry attempts
+
+    while (retryAttempts > 0) {
+      try {
+        fileContent = readFileSync(filePath);
+        break; // Break out of the loop if read is successful
+      } catch (error) {
+        console.error(`Error reading file: ${filePath}`, error.message);
+        retryAttempts--;
+
+        if (retryAttempts === 0) {
+          console.error(`Maximum retry attempts reached. Unable to read file: ${filePath}`);
+          return;
+        }
+
+        // Add a delay before retrying (e.g., 1 second)
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
 
     this.fileQueues[index].push({ order: this.counters[index]++, filePath });
 

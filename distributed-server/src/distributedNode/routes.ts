@@ -116,7 +116,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       const { event, filePath, fileContent } = request.body;
       const directoryPath = path.dirname(filePath);
       await fs.ensureDir(directoryPath);
-      fs.writeFileSync(filePath, fileContent, "utf-8");
+      fs.writeFileSync(filePath, fileContent);
       reply.code(200).send({ message: "File change received and saved successfully" });
     } catch (error) {
       console.error("Error handling file change:", error.message);
