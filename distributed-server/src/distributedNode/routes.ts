@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import { DistributedServerNode } from "./distributedNode";
+import * as path from "path";
 
 export const routes = (mainServer, node: DistributedServerNode) => {
   // Base route
@@ -113,7 +114,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
   mainServer.put("/file-change", async (request, reply) => {
     try {
       const { event, filePath, fileContent } = request.body;
-      const directoryPath = filePath.dirname(filePath);
+      const directoryPath = path.dirname(filePath);
       await fs.ensureDir(directoryPath);
       fs.writeFileSync(filePath, fileContent, "utf-8");
       reply.code(200).send({ message: "File change received and saved successfully" });
