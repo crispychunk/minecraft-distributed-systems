@@ -112,6 +112,7 @@ export class DistributedServerNode {
           ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
           this
         );
+        this.fileWatcher.startWatching();
       }
     }
     this.initProcesses();
@@ -294,6 +295,7 @@ export class DistributedServerNode {
       ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
       this
     );
+    this.fileWatcher.startWatching();
     this.initRoutines();
     this.saveToFile();
     this.initMCServerApplication();
@@ -570,6 +572,7 @@ export class DistributedServerNode {
       ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
       this
     );
+    this.fileWatcher.startWatching();
     this.initMCServerApplication();
   }
 

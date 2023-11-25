@@ -9,6 +9,7 @@ function getLocalIPv4Address(): string | null {
 
     for (const iface of interfaceInfo) {
       // Check for IPv4 and exclude loopback and internal addresses
+      console.log(iface);
       if (iface.family === "IPv4" && !iface.internal && iface.address !== "127.0.0.1") {
         return iface.address;
       }

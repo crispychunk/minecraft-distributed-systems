@@ -50,7 +50,7 @@ export class FileWatcher {
 
     while (retryAttempts > 0) {
       try {
-        fileContent = readFileSync(filePath);
+        fileContent = readFileSync(filePath, "utf-8");
         break; // Break out of the loop if read is successful
       } catch (error) {
         console.error(`Error reading file: ${filePath}`, error.message);
@@ -99,14 +99,14 @@ export class FileWatcher {
     node: DistributedNode,
     event: string,
     filePath: string,
-    fileContent: string,
+    fileContent: any,
     senderIndex: number
   ) {
     const url = `http://${node.address}:${node.distributedPort}/file-change`;
     const data = {
       event,
       filePath,
-      fileContent,
+      fileContent: fileContent.toString("base64"),
       order: this.fileQueues[senderIndex].slice(), // Send a copy of the current order
     };
 
