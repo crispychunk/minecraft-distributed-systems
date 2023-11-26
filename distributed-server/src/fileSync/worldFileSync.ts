@@ -170,6 +170,7 @@ export class FileWatcher {
     const fileQueue = result.data;
     const difference = this.findDifferenceQueue(fileQueue);
     console.log(difference);
+    await this.getAllFiles(difference);
     // get Latest files
   }
 
@@ -188,5 +189,36 @@ export class FileWatcher {
     return sortedArray;
   }
 
-  private getFile(latestOrderMap) {}
+  private async getAllFiles(difference) {
+    // get file in batches so to not overload server
+    const batchSize = 20;
+    const batches = [];
+    for (let i = 0; i < difference.length; i += batchSize) {
+      batches.push(difference.latestOrderArray.slice(i, i + batchSize));
+    }
+
+    // Send requests for each batch
+    for (const batch of batches) {
+      const promises = batch.map(async (entry) => {
+        const { filePath, order } = entry;
+
+        const URL = `http://${this.node.address}:${this.node.mainPort}`;
+        try {
+          const response = await axios.post(`${URL}/missing-files`, filePath);
+          //ensure directory path
+          const directoryPath = path.dirname(filePath);
+
+          // Update order
+
+          this.counter = order;
+          console.log(`File content for ${filePath} (order ${order}):`, response.data);
+        } catch (error) {
+          console.error(`Error fetching file ${filePath}:`, error.message);
+        }
+      });
+
+      // Wait for all requests in the current batch to complete before moving to the next batch
+      await Promise.all(promises);
+    }
+  }
 }

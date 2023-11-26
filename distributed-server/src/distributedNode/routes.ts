@@ -146,30 +146,17 @@ export const routes = (mainServer, node: DistributedServerNode) => {
 
   mainServer.post("/missing-files", async (request, reply) => {
     try {
-      const { files } = request.body;
+      const { filePath } = request.body;
+      console.log(filePath);
 
-      if (!Array.isArray(files) || files.length === 0) {
-        return reply.code(400).send({ error: "Invalid or empty list of files." });
+      try {
+        let content = fs.readFileSync(filePath);
+        content = content.toString("base64");
+        return reply.send({ content });
+      } catch (error) {
+        console.error(`Error reading file ${filePath}: ${error.message}`);
+        return reply.code(500).send({ error: "Internal Server Error" });
       }
-
-      const batchSize = 10;
-      const fileContents = {};
-
-      for (let i = 0; i < files.length; i += batchSize) {
-        const batch = files.slice(i, i + batchSize);
-
-        for (const filePath of batch) {
-          try {
-            const content = fs.readFileSync(filePath, "utf-8");
-            fileContents[filePath] = content;
-          } catch (error) {
-            console.error(`Error reading file ${filePath}: ${error.message}`);
-            fileContents[filePath] = null; // or handle the error in a way that fits your use case
-          }
-        }
-      }
-
-      return reply.send({ fileContents });
     } catch (error) {
       console.error("Error handling /missing-files:", error.message);
       return reply.code(500).send({ error: "Internal Server Error" });
