@@ -4,7 +4,7 @@ import { join, basename } from "path";
 import { readFileSync, writeFileSync, ensureFileSync, existsSync, ensureDir } from "fs-extra";
 import { DistributedNode } from "../distributedNode/node/distributedNodeInterface";
 import { DistributedServerNode } from "../distributedNode/distributedNode";
-import path from "path"
+import path from "path";
 
 export class FileWatcher {
   private directoriesToWatch: string[];
@@ -172,8 +172,7 @@ export class FileWatcher {
     this.fileQueue = fileQueue;
 
     this.saveQueueToFile();
-    console.log("Recovery complete")
-
+    console.log("Recovery complete");
   }
 
   private findDifferenceQueue(fileQueue) {
@@ -204,17 +203,17 @@ export class FileWatcher {
       const promises = batch.map(async (entry) => {
         const order = entry[1];
         let filePath = entry[0];
-        filePath = filePath.replace(/\\/g,'/');
+        filePath = filePath.replace(/\\/g, "/");
 
         const URL = `http://${this.node.primaryNode.address}:${this.node.primaryNode.distributedPort}`;
         try {
-          const response = await axios.post(`${URL}/missing-files`, {filePath});
-          console.log("recieved",filePath)
-          let {content}  = response.data;
-          content = Buffer.from(content,"base64");
-          const directoryPath = path.dirname(filePath)
-          ensureDir(directoryPath)
-          writeFileSync(filePath,content);
+          const response = await axios.post(`${URL}/missing-files`, { filePath });
+          console.log("recieved", filePath);
+          let { content } = response.data;
+          content = Buffer.from(content, "base64");
+          const directoryPath = path.dirname(filePath);
+          ensureDir(directoryPath);
+          writeFileSync(filePath, content);
           this.counter = order;
           console.log(`Recieved file: ${filePath}`);
         } catch (error) {

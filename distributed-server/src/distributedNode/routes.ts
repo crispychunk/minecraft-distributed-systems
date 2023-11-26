@@ -117,14 +117,14 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       const directoryPath = path.dirname(filePath);
       // Check if the order is the next one, if it is run the code, else run recovery:
       if (order == node.fileWatcher.counter) {
-
         await fs.ensureDir(directoryPath);
         const testPath = `./test/worlds/${path.basename(filePath)}`;
         const decodedFileContent = Buffer.from(fileContent, "base64");
         fs.writeFileSync(filePath, decodedFileContent);
-        console.log("recieved file changes")
+        console.log("recieved file changes");
         reply.code(200).send({ message: "File change received and saved successfully" });
       } else {
+        node.fileWatcher.recovery();
       }
     } catch (error) {
       console.error("Error handling file change:", error.message);
