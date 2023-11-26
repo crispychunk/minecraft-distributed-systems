@@ -13,6 +13,7 @@ export class FileWatcher {
   public counter: number;
   private initialScanComplete: boolean;
   private node: DistributedServerNode;
+  public inRecovery: boolean;
 
   constructor(directoriesToWatch: string[], node: DistributedServerNode) {
     this.directoriesToWatch = directoriesToWatch;
@@ -163,6 +164,7 @@ export class FileWatcher {
 
   public async recovery() {
     console.log("Running recovery");
+    this.inRecovery = true;
     const URL = `http://${this.node.primaryNode.address}:${this.node.primaryNode.distributedPort}/request-file-log`;
 
     const result = await axios.get(URL);
@@ -172,6 +174,7 @@ export class FileWatcher {
     this.fileQueue = fileQueue;
 
     this.saveQueueToFile();
+    this.inRecovery = false;
     console.log("Recovery complete");
   }
 
