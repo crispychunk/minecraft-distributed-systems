@@ -168,8 +168,9 @@ export class FileWatcher {
 
     const result = await axios.get(URL);
     const fileQueue = result.data;
-    const differenceMap = this.findDifferenceQueue(fileQueue);
-    console.log(differenceMap);
+    const difference = this.findDifferenceQueue(fileQueue);
+    console.log(difference);
+    // get Latest files
   }
 
   private findDifferenceQueue(fileQueue) {
@@ -183,6 +184,9 @@ export class FileWatcher {
         latestOrderMap.set(file.filePath, file.order);
       }
     }
-    return latestOrderMap;
+    const sortedArray = Array.from(latestOrderMap.entries()).sort((a, b) => a[1] - b[1]);
+    return sortedArray;
   }
+
+  private getFile(latestOrderMap) {}
 }
