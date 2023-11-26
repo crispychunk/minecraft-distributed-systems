@@ -311,14 +311,14 @@ export class DistributedServerNode {
 
       // Rsync client update
       this.rSyncTerm = 0;
-      this.rSyncClient = new RSyncClient({
-        host: this.primaryNode.address,
-        port: this.primaryNode.rsyncPort,
-        username: "username",
-        password: "password",
-        privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
-      });
-      await this.rSyncClient.connect();
+      // this.rSyncClient = new RSyncClient({
+      //   host: this.primaryNode.address,
+      //   port: this.primaryNode.rsyncPort,
+      //   username: "username",
+      //   password: "password",
+      //   privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
+      // });
+      // await this.rSyncClient.connect();
       this.RAFTConsensus = new RAFTconsensus(
         this.raftSave.currentTerm,
         this.raftSave.votedFor,

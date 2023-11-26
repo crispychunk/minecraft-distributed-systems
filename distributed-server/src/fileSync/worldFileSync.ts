@@ -1,9 +1,10 @@
 import chokidar from "chokidar";
 import axios from "axios";
 import { join, basename } from "path";
-import { readFileSync, writeFileSync, ensureFileSync, existsSync } from "fs-extra";
+import { readFileSync, writeFileSync, ensureFileSync, existsSync, ensureDir } from "fs-extra";
 import { DistributedNode } from "../distributedNode/node/distributedNodeInterface";
 import { DistributedServerNode } from "../distributedNode/distributedNode";
+import path from "path"
 
 export class FileWatcher {
   private directoriesToWatch: string[];
@@ -164,12 +165,11 @@ export class FileWatcher {
 
   public async recovery() {
     console.log("Running recovery");
-    const URL = `http://${this.node.primaryNode.address}:${this.node.mainPort}/request-file-log`;
+    const URL = `http://${this.node.primaryNode.address}:${this.node.primaryNode.distributedPort}/request-file-log`;
 
     const result = await axios.get(URL);
     const fileQueue = result.data;
     const difference = this.findDifferenceQueue(fileQueue);
-    console.log(difference);
     await this.getAllFiles(difference);
     // get Latest files
   }
@@ -191,27 +191,30 @@ export class FileWatcher {
 
   private async getAllFiles(difference) {
     // get file in batches so to not overload server
-    const batchSize = 20;
+    const batchSize = 10;
     const batches = [];
     for (let i = 0; i < difference.length; i += batchSize) {
-      batches.push(difference.latestOrderArray.slice(i, i + batchSize));
+      batches.push(difference.slice(i, i + batchSize));
     }
 
     // Send requests for each batch
     for (const batch of batches) {
       const promises = batch.map(async (entry) => {
-        const { filePath, order } = entry;
+        const order = entry[1];
+        let filePath = entry[0];
+        filePath.replace(/\\/g,'/');
+        console.log(filePath)
 
-        const URL = `http://${this.node.address}:${this.node.mainPort}`;
+        const URL = `http://${this.node.primaryNode.address}:${this.node.primaryNode.distributedPort}`;
         try {
-          const response = await axios.post(`${URL}/missing-files`, filePath);
-          //ensure directory path
-          const directoryPath = path.dirname(filePath);
-
-          // Update order
-
+          const response = await axios.post(`${URL}/missing-files`, {filePath});
+          let {content}  = response.data;
+          content = Buffer.from(content,"base64");
+          const directoryPath = path.dirname(filePath)
+          console.log(directoryPath)
+          ensureDir(filePath)
+          //writeFileSync(filePath,content);
           this.counter = order;
-          console.log(`File content for ${filePath} (order ${order}):`, response.data);
         } catch (error) {
           console.error(`Error fetching file ${filePath}:`, error.message);
         }
