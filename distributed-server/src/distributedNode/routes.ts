@@ -113,16 +113,66 @@ export const routes = (mainServer, node: DistributedServerNode) => {
 
   mainServer.put("/file-change", async (request, reply) => {
     try {
-      const { event, filePath, fileContent } = request.body;
+      const { event, filePath, fileContent, order } = request.body;
       const directoryPath = path.dirname(filePath);
-      await fs.ensureDir(directoryPath);
-      const testPath = `./test/worlds/${path.basename(filePath)}`;
-      const decodedFileContent = Buffer.from(fileContent, "base64");
-      fs.writeFileSync(filePath, decodedFileContent);
-      reply.code(200).send({ message: "File change received and saved successfully" });
+      // Check if the order is the next one, if it is run the code, else run recovery:
+
+      if (order == mainServer.fileWatcher.counter) {
+        await fs.ensureDir(directoryPath);
+        const testPath = `./test/worlds/${path.basename(filePath)}`;
+        const decodedFileContent = Buffer.from(fileContent, "base64");
+        fs.writeFileSync(filePath, decodedFileContent);
+        reply.code(200).send({ message: "File change received and saved successfully" });
+      } else {
+      }
     } catch (error) {
       console.error("Error handling file change:", error.message);
       reply.code(500).send({ error: "Internal Server Error" });
+    }
+  });
+
+  //FILE SYNC FAILURE RECOVERY OR JOINING A NODE
+
+  mainServer.get("/request-file-log", async (request, reply) => {
+    const data = node.fileWatcher.getFileQueue();
+    reply.code(200).send(data);
+  });
+
+  mainServer.get("/test-recovery", async (request, reply) => {
+    console.log("Running test recovery");
+    await node.fileWatcher.recovery();
+    reply.code(200);
+  });
+
+  mainServer.post("/missing-files", async (request, reply) => {
+    try {
+      const { files } = request.body;
+
+      if (!Array.isArray(files) || files.length === 0) {
+        return reply.code(400).send({ error: "Invalid or empty list of files." });
+      }
+
+      const batchSize = 10;
+      const fileContents = {};
+
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize);
+
+        for (const filePath of batch) {
+          try {
+            const content = fs.readFileSync(filePath, "utf-8");
+            fileContents[filePath] = content;
+          } catch (error) {
+            console.error(`Error reading file ${filePath}: ${error.message}`);
+            fileContents[filePath] = null; // or handle the error in a way that fits your use case
+          }
+        }
+      }
+
+      return reply.send({ fileContents });
+    } catch (error) {
+      console.error("Error handling /missing-files:", error.message);
+      return reply.code(500).send({ error: "Internal Server Error" });
     }
   });
 

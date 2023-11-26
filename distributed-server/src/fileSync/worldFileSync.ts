@@ -8,35 +8,37 @@ import { DistributedServerNode } from "../distributedNode/distributedNode";
 export class FileWatcher {
   private directoriesToWatch: string[];
   private watchers: chokidar.FSWatcher[];
-  private fileQueues: { order: number; filePath: string }[][];
-  private counters: number[];
-  private initialScanCompletes: boolean[];
+  private fileQueue: { order: number; filePath: string }[];
+  private counter: number;
+  private initialScanComplete: boolean;
   private node: DistributedServerNode;
 
   constructor(directoriesToWatch: string[], node: DistributedServerNode) {
     this.directoriesToWatch = directoriesToWatch;
     this.watchers = directoriesToWatch.map((dir) => chokidar.watch(dir, { persistent: true }));
-    this.fileQueues = directoriesToWatch.map(() => []);
-    this.counters = directoriesToWatch.map(() => 1);
-    this.initialScanCompletes = directoriesToWatch.map(() => false);
+    this.fileQueue = [];
+    this.counter = 1;
+    this.initialScanComplete = false;
     this.node = node;
 
-    // Load the fileQueues from the saved JSON file
-    this.loadQueuesFromFile();
+    // Load the fileQueue from the saved JSON file
+    this.loadQueueFromFile();
   }
 
-  private setupEventHandlers(index: number): void {
-    this.watchers[index]
-      .on("add", (path) => this.handleFileChange("add", path, index))
-      .on("change", (path) => this.handleFileChange("change", path, index))
-      .on("unlink", (path) => this.handleFileChange("unlink", path, index))
-      .on("ready", () => {
-        this.initialScanCompletes[index] = true;
-      });
+  private setupEventHandlers(): void {
+    this.watchers.forEach((watcher, index) => {
+      watcher
+        .on("add", (path) => this.handleFileChange("add", path))
+        .on("change", (path) => this.handleFileChange("change", path))
+        .on("unlink", (path) => this.handleFileChange("unlink", path))
+        .on("ready", () => {
+          this.initialScanComplete = true;
+        });
+    });
   }
 
-  private async handleFileChange(event: string, filePath: string, index: number) {
-    if (!this.initialScanCompletes[index]) {
+  private async handleFileChange(event: string, filePath: string) {
+    if (!this.initialScanComplete) {
       return;
     }
 
@@ -66,24 +68,19 @@ export class FileWatcher {
       }
     }
 
-    this.fileQueues[index].push({ order: this.counters[index]++, filePath });
+    this.fileQueue.push({ order: this.counter++, filePath });
 
-    this.saveQueueToFile(index);
+    this.saveQueueToFile();
 
-    await this.propagateFileChange(event, filePath, fileContent, index);
+    await this.propagateFileChange(event, filePath, fileContent);
 
     console.log(`File change processed: ${event} - ${filePath}`);
   }
 
-  public async propagateFileChange(
-    event: string,
-    filePath: string,
-    fileContent: string,
-    senderIndex: number
-  ): Promise<void> {
+  public async propagateFileChange(event: string, filePath: string, fileContent: string): Promise<void> {
     const requestPromises = this.node.networkNodes.map((node) => {
       if (node.uuid !== this.node.uuid) {
-        this.sendFileChange(node, event, filePath, fileContent, senderIndex);
+        this.sendFileChange(node, event, filePath, fileContent);
       }
     });
 
@@ -95,19 +92,13 @@ export class FileWatcher {
     }
   }
 
-  private sendFileChange(
-    node: DistributedNode,
-    event: string,
-    filePath: string,
-    fileContent: any,
-    senderIndex: number
-  ) {
+  private sendFileChange(node: DistributedNode, event: string, filePath: string, fileContent: any) {
     const url = `http://${node.address}:${node.distributedPort}/file-change`;
     const data = {
       event,
       filePath,
       fileContent: fileContent.toString("base64"),
-      order: this.fileQueues[senderIndex].slice(), // Send a copy of the current order
+      order: this.fileQueue.slice(), // Send a copy of the current order
     };
 
     return axios
@@ -118,42 +109,46 @@ export class FileWatcher {
       });
   }
 
-  private loadQueuesFromFile(): void {
-    this.directoriesToWatch.forEach((directory, index) => {
-      const queueFilePath = join(directory, "fileQueue.json");
+  private loadQueueFromFile(): void {
+    const FILEQUEUE = "./src/fileSync";
+    const queueFilePath = join(FILEQUEUE, "fileQueue.json");
 
-      if (existsSync(queueFilePath)) {
-        const fileQueueContent = readFileSync(queueFilePath, "utf-8");
-        try {
-          this.fileQueues[index] = JSON.parse(fileQueueContent);
-          console.log(`FileQueue for directory ${directory} loaded from file.`);
-        } catch (error) {
-          console.error(`Error parsing fileQueue JSON: ${error.message}`);
-        }
-      }
-    });
-  }
-
-  private saveQueueToFile(index: number): void {
-    if (!this.initialScanCompletes[index]) {
-      return;
+    if (!existsSync(queueFilePath)) {
+      ensureFileSync(queueFilePath);
+      this.counter = 1;
+      this.fileQueue = [];
+      writeFileSync(queueFilePath, JSON.stringify(this.fileQueue, null, 2), "utf-8");
     }
 
-    const queueFilePath = join(this.directoriesToWatch[index], "fileQueue.json");
+    const fileQueueContent = readFileSync(queueFilePath, "utf-8");
+
+    try {
+      this.fileQueue = JSON.parse(fileQueueContent);
+      this.counter = this.fileQueue[this.fileQueue.length - 1].order + 1;
+      console.log(`FileQueue loaded. Latest counter: ${this.counter}`);
+    } catch (error) {
+      console.error(`Error parsing fileQueue JSON: ${error.message}`);
+    }
+  }
+
+  private saveQueueToFile(): void {
+    if (!this.initialScanComplete) {
+      return;
+    }
+    const FILEQUEUE = "./src/fileSync";
+    const queueFilePath = join(FILEQUEUE, "fileQueue.json");
 
     try {
       ensureFileSync(queueFilePath);
-      writeFileSync(queueFilePath, JSON.stringify(this.fileQueues[index], null, 2), "utf-8");
+      writeFileSync(queueFilePath, JSON.stringify(this.fileQueue, null, 2), "utf-8");
     } catch (error) {
       console.error(`Error saving queue to file: ${error.message}`);
     }
   }
 
   startWatching(): void {
-    this.directoriesToWatch.forEach((directory, index) => {
-      this.setupEventHandlers(index);
-      console.log(`Watching directory: ${directory}`);
-    });
+    this.setupEventHandlers();
+    console.log(`Watching directories: ${this.directoriesToWatch.join(", ")}`);
   }
 
   stopWatching(): void {
@@ -161,5 +156,33 @@ export class FileWatcher {
       watcher.close();
       console.log(`Stopped watching directory: ${this.directoriesToWatch[index]}`);
     });
+  }
+
+  public getFileQueue() {
+    return this.fileQueue;
+  }
+
+  public async recovery() {
+    console.log("Running recovery");
+    const URL = `http://${this.node.primaryNode.address}:${this.node.mainPort}/request-file-log`;
+
+    const result = await axios.get(URL);
+    const fileQueue = result.data;
+    const differenceMap = this.findDifferenceQueue(fileQueue);
+    console.log(differenceMap);
+  }
+
+  private findDifferenceQueue(fileQueue) {
+    // Trim fileQueue to only counters after its current counter
+    const trimmedFileQueue = fileQueue.filter((file) => file.order >= this.counter);
+    // Find Map, storing the latest order of the file path
+    const latestOrderMap = new Map();
+    for (const file of trimmedFileQueue) {
+      const existingOrder = latestOrderMap.get(file.filePath);
+      if (existingOrder === undefined || file.order > existingOrder) {
+        latestOrderMap.set(file.filePath, file.order);
+      }
+    }
+    return latestOrderMap;
   }
 }

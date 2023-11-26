@@ -103,15 +103,15 @@ export class DistributedServerNode {
   public async start() {
     await this.initDistributedServer();
     this.initRoutines();
+    this.fileWatcher = new FileWatcher(
+      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
+      this
+    );
     if (this.isPrimaryNode) {
       //await this.initRsyncServer();
       // No need to init mc server
       if (ENV != "dev") {
         this.initMCServerApplication();
-        this.fileWatcher = new FileWatcher(
-          ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
-          this
-        );
         this.fileWatcher.startWatching();
       }
     }
@@ -291,10 +291,6 @@ export class DistributedServerNode {
     this.networkNodes = [this.selfNode];
     this.primaryNode = this.findPrimaryNode();
     //await this.initRsyncServer();
-    this.fileWatcher = new FileWatcher(
-      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
-      this
-    );
     this.fileWatcher.startWatching();
     this.initRoutines();
     this.saveToFile();
