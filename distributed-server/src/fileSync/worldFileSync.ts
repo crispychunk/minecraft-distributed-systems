@@ -10,7 +10,7 @@ export class FileWatcher {
   private directoriesToWatch: string[];
   private watchers: chokidar.FSWatcher[];
   private fileQueue: { order: number; filePath: string }[];
-  private counter: number;
+  public counter: number;
   private initialScanComplete: boolean;
   private node: DistributedServerNode;
 
@@ -126,6 +126,7 @@ export class FileWatcher {
     try {
       this.fileQueue = JSON.parse(fileQueueContent);
       this.counter = this.fileQueue[this.fileQueue.length - 1].order + 1;
+
       console.log(`FileQueue loaded. Latest counter: ${this.counter}`);
     } catch (error) {
       console.error(`Error parsing fileQueue JSON: ${error.message}`);
@@ -133,9 +134,6 @@ export class FileWatcher {
   }
 
   private saveQueueToFile(): void {
-    if (!this.initialScanComplete) {
-      return;
-    }
     const FILEQUEUE = "./src/fileSync";
     const queueFilePath = join(FILEQUEUE, "fileQueue.json");
 
@@ -171,7 +169,11 @@ export class FileWatcher {
     const fileQueue = result.data;
     const difference = this.findDifferenceQueue(fileQueue);
     await this.getAllFiles(difference);
-    // get Latest files
+    this.fileQueue = fileQueue;
+
+    this.saveQueueToFile();
+    console.log("Recovery complete")
+
   }
 
   private findDifferenceQueue(fileQueue) {
@@ -202,21 +204,21 @@ export class FileWatcher {
       const promises = batch.map(async (entry) => {
         const order = entry[1];
         let filePath = entry[0];
-        filePath.replace(/\\/g,'/');
-        console.log(filePath)
+        filePath = filePath.replace(/\\/g,'/');
 
         const URL = `http://${this.node.primaryNode.address}:${this.node.primaryNode.distributedPort}`;
         try {
           const response = await axios.post(`${URL}/missing-files`, {filePath});
+          console.log("recieved",filePath)
           let {content}  = response.data;
           content = Buffer.from(content,"base64");
           const directoryPath = path.dirname(filePath)
-          console.log(directoryPath)
-          ensureDir(filePath)
-          //writeFileSync(filePath,content);
+          ensureDir(directoryPath)
+          writeFileSync(filePath,content);
           this.counter = order;
+          console.log(`Recieved file: ${filePath}`);
         } catch (error) {
-          console.error(`Error fetching file ${filePath}:`, error.message);
+          console.error(`Error fetching file ${filePath}:`);
         }
       });
 
