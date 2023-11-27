@@ -543,6 +543,7 @@ export class DistributedServerNode {
     this.updateSelfNode();
     this.removeNetworkNode(this.uuid);
     this.networkNodes.push(this.selfNode);
+    this.primaryNode.isPrimary = false; // Set original primary node to false
     this.primaryNode = this.findPrimaryNode();
     this.initRoutines();
     await this.propagateLeadershipNotification();
@@ -595,38 +596,40 @@ export class DistributedServerNode {
 
     // Ask all known nodes who is the primary
     for (const node of this.networkNodes) {
-      try {
-        const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`);
+      if (node.uuid != this.uuid) {
+        try {
+          const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`);
 
-        if (response) {
-          // Add your logic to verify and handle the primary node claim
-          const { primary } = response.data.info;
-          if (primary.uuid == this.uuid) {
-            // I am still leader run as normal
-            console.log("Self still leader");
-            this.initRoutines();
-            this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
-            if (this.isPrimaryNode) {
-              //await this.initRsyncServer();
-              // No need to init mc server
-              if (ENV != "dev") {
-                this.initMCServerApplication();
-                this.fileWatcher.startWatching();
+          if (response) {
+            // Add your logic to verify and handle the primary node claim
+            const { primary } = response.data.info;
+            if (primary.uuid == this.uuid) {
+              // I am still leader run as normal
+              console.log("Self still leader");
+              this.initRoutines();
+              this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
+              if (this.isPrimaryNode) {
+                //await this.initRsyncServer();
+                // No need to init mc server
+                if (ENV != "dev") {
+                  this.initMCServerApplication();
+                  this.fileWatcher.startWatching();
+                }
               }
+              this.initProcesses();
+            } else {
+              const response = await axios.put(`http://${primary.address}:${primary.distributedPort}/request-recovery`);
+              console.log(response.data);
+              this.networkNodes = response.data.networkNodes;
+
+              this.fileWatcher.recovery();
             }
-            this.initProcesses();
-          } else {
-            const response = await axios.put(`http://${primary.address}:${primary.distributedPort}/request-recovery`);
-            console.log(response.data);
-            this.networkNodes = response.data.networkNodes;
 
-            this.fileWatcher.recovery();
+            break;
           }
-
-          break;
+        } catch (error) {
+          console.error(`Error querying node ${node.address}:${node.distributedPort}:`, error.message);
         }
-      } catch (error) {
-        console.error(`Error querying node ${node.address}:${node.distributedPort}:`, error.message);
       }
     }
   }
