@@ -101,6 +101,13 @@ export class DistributedServerNode {
   }
 
   public async start() {
+    // Init RAFT
+    this.RAFTConsensus = new RAFTconsensus(
+      this.raftSave.currentTerm,
+      this.raftSave.votedFor,
+      this.raftSave.state,
+      this
+    );
     await this.initDistributedServer();
     this.initRoutines();
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
@@ -153,13 +160,6 @@ export class DistributedServerNode {
         bodyLimit: 500 * 1024 * 1024, // 10MB limit
       });
 
-      // Init RAFT
-      this.RAFTConsensus = new RAFTconsensus(
-        this.raftSave.currentTerm,
-        this.raftSave.votedFor,
-        this.raftSave.state,
-        this
-      );
 
       // Define a route
       routes(this.mainServer, this);
@@ -296,6 +296,7 @@ export class DistributedServerNode {
 
   public async requestNetwork({ address }) {
     const requestURL = `${address}/join-network`;
+    const RAFTURL = `${address}/raft-state`;
     this.uuid = uuidv4();
     this.updateSelfNode();
     try {
@@ -305,6 +306,16 @@ export class DistributedServerNode {
       this.inNetwork = true;
       this.networkNodes = results.data.data;
       this.primaryNode = this.findPrimaryNode();
+
+      // NEED TESTING
+      const raftResponse = await axios.get(RAFTURL);
+      const primaryraftSave: RAFTSave = raftResponse.data.raftState;
+      const newRaftSave: RAFTSave = {
+        currentTerm: primaryraftSave.currentTerm,
+        votedFor: null,
+        state: RaftState.FOLLOWER
+      }
+      this.raftSave = newRaftSave
       this.RAFTConsensus = new RAFTconsensus(
         this.raftSave.currentTerm,
         this.raftSave.votedFor,
@@ -350,6 +361,14 @@ export class DistributedServerNode {
     this.uuid = null;
     this.inNetwork = false;
     this.initRoutines();
+
+    // RESET RAFT STATES
+    this.RAFTConsensus = new RAFTconsensus(
+      this.raftSave.currentTerm,
+      this.raftSave.votedFor,
+      this.raftSave.state,
+      this
+    );
     this.saveToFile();
   }
   public async acceptLeaveNetwork(node: DistributedNode) {
@@ -564,7 +583,6 @@ export class DistributedServerNode {
       password: "password",
       privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
     });
-    //await this.rSyncClient.connect();
     this.initRoutines();
     this.saveToFile();
   }
@@ -620,10 +638,19 @@ export class DistributedServerNode {
             } else {
               console.log("recovering...");
               const URL = `http://${primary.address}:${primary.distributedPort}/request-recovery`;
+              const RAFTURL = `http://${primary.address}:${primary.distributedPort}/raft-state`;
               const response = await axios.put(URL, { failedNode: this.selfNode });
               this.networkNodes = response.data.networkNodes;
               this.primaryNode = this.findPrimaryNode();
               this.isPrimaryNode = false;
+              const raftResponse = await axios.get(RAFTURL);
+              const primaryraftSave: RAFTSave = raftResponse.data.raftState;
+              const newRaftSave: RAFTSave = {
+                currentTerm: primaryraftSave.currentTerm,
+                votedFor: null,
+                state: RaftState.FOLLOWER
+              }
+              this.raftSave = newRaftSave
               this.RAFTConsensus = new RAFTconsensus(
                 this.raftSave.currentTerm,
                 this.raftSave.votedFor,
@@ -647,6 +674,12 @@ export class DistributedServerNode {
     }
     // Nobody responded, start as normal
     console.log("Nobody responded, Self still leader");
+    this.RAFTConsensus = new RAFTconsensus(
+      this.raftSave.currentTerm,
+      this.raftSave.votedFor,
+      this.raftSave.state,
+      this
+    );
     this.initRoutines();
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     if (this.isPrimaryNode) {

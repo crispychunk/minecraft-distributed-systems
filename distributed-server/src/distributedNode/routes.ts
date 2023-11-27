@@ -29,6 +29,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
 
     return { message: "Network started successfully" };
   });
+  
 
   // Route to tell node to join a network
   mainServer.put("/request-network", async (request, reply) => {
@@ -232,4 +233,10 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     node.accepteLeadership(request.body);
     return { message: "New Leader Accepted" };
   });
+
+  // Server call primary server to get the raft state
+  mainServer.get("/raft-state",async (request,reply)=> {
+    const raftState = node.RAFTConsensus.saveFile();
+    return reply.code(200).send({raftState})
+  })
 };

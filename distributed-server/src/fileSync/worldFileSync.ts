@@ -35,7 +35,6 @@ export class FileWatcher {
 
   private ensureDirectoriesExist() {
     this.directoriesToWatch.forEach((dir) => {
-      // Ensure the directory exists, creating it if necessary
       ensureDirSync(dir);
     });
   }
