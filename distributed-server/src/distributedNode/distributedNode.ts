@@ -515,9 +515,9 @@ export class DistributedServerNode {
     clearInterval(this.heartbeatTimerId);
     const baseDelay = Math.pow(2, 3) * 100;
     const randomFactor = Math.random() + 0.5; // Adjust the range of randomness as needed
-    const electionDelay = Math.min(baseDelay * randomFactor, 15000);
+    const electionDelay = Math.min(baseDelay * randomFactor, 13000);
     await sleep(electionDelay);
-
+    console.log("Running Raft election");
     this.RAFTConsensus.startElection();
   }
 
@@ -598,10 +598,10 @@ export class DistributedServerNode {
     for (const node of this.networkNodes) {
       if (node.uuid != this.uuid) {
         try {
-          const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`,{timeout:4000});
+          const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`, { timeout: 4000 });
           const { primary } = response.data.info;
           if (response.status == 200) {
-            console.log(response.status)
+            console.log(response.status);
 
             if (primary.uuid == this.uuid) {
               // I am still leader run as normal
@@ -622,9 +622,19 @@ export class DistributedServerNode {
               const URL = `http://${primary.address}:${primary.distributedPort}/request-recovery`;
               const response = await axios.put(URL, { failedNode: this.selfNode });
               this.networkNodes = response.data.networkNodes;
+              this.primaryNode = this.findPrimaryNode();
+              this.isPrimaryNode = false;
+              this.RAFTConsensus = new RAFTconsensus(
+                this.raftSave.currentTerm,
+                this.raftSave.votedFor,
+                this.raftSave.state,
+                this
+              );
 
+              this.initRoutines();
               this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
               this.fileWatcher.recovery();
+              this.saveToFile();
             }
 
             return;
@@ -634,8 +644,6 @@ export class DistributedServerNode {
           break;
         }
       }
-
-
     }
     // Nobody responded, start as normal
     console.log("Nobody responded, Self still leader");
