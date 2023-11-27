@@ -112,15 +112,21 @@ export const routes = (mainServer, node: DistributedServerNode) => {
   // FILE SYNC
 
   mainServer.put("/file-change", async (request, reply) => {
+
     try {
-      const { event, filePath, fileContent, order } = request.body;
-      const directoryPath = path.dirname(filePath);
+      let { event, filePath, fileContent, order } = request.body;
       // Check if the order is the next one, if it is run the code, else run recovery:
-      if (order == node.fileWatcher.counter && !node.fileWatcher.inRecovery) {
+      filePath.replace(/\\/g, "/")
+      if (order == node.fileWatcher.counter+1 && !node.fileWatcher.inRecovery) {
+        node.fileWatcher.addFileToQueue(filePath);
+        filePath = filePath.replace(/\\/g, "/");
+        let directoryPath = path.dirname(filePath);
         await fs.ensureDir(directoryPath);
         const testPath = `./test/worlds/${path.basename(filePath)}`;
         const decodedFileContent = Buffer.from(fileContent, "base64");
         fs.writeFileSync(filePath, decodedFileContent);
+        // Also write to own log
+      
         console.log("recieved file changes");
         reply.code(200).send({ message: "File change received and saved successfully" });
       } else {

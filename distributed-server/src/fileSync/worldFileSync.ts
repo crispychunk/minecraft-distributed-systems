@@ -70,13 +70,20 @@ export class FileWatcher {
       }
     }
 
-    this.fileQueue.push({ order: this.counter++, filePath });
+    this.fileQueue.push({ order: this.counter, filePath });
 
     this.saveQueueToFile();
 
     await this.propagateFileChange(event, filePath, fileContent);
 
     console.log(`File change processed: ${event} - ${filePath}`);
+    this.counter++;
+  }
+
+  addFileToQueue(filePath: string) {
+    this.counter++;
+    this.fileQueue.push({ order: this.counter, filePath });
+    this.saveQueueToFile();
   }
 
   public async propagateFileChange(event: string, filePath: string, fileContent: string): Promise<void> {
@@ -175,7 +182,8 @@ export class FileWatcher {
 
     this.saveQueueToFile();
     this.inRecovery = false;
-    console.log("Recovery complete");
+
+    console.log("Recovery complete, with transaction starting at:",this.counter);
   }
 
   private findDifferenceQueue(fileQueue) {
