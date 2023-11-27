@@ -234,8 +234,8 @@ export class DistributedServerNode {
         address: this.address,
         isPrimaryNode: this.isPrimaryNode,
         inNetwork: this.inNetwork,
-        networkNodes: this.networkNodes.map((node) => ({ ...node })),
         uuid: this.uuid,
+        networkNodes: this.networkNodes.map((node) => ({ ...node })),
         rSyncTerm: this.rSyncTerm,
         primaryNode: this.primaryNode,
         selfNode: { ...this.selfNode },
@@ -593,15 +593,14 @@ export class DistributedServerNode {
 
   async recoveryStart() {
     await this.initDistributedServer();
-
     // Ask all known nodes who is the primary
     for (const node of this.networkNodes) {
       if (node.uuid != this.uuid) {
         try {
-          const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`);
+          const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`,{timeout:4000});
           const { primary } = response.data.info;
-          if (response) {
-            // Add your logic to verify and handle the primary node claim
+          if (response.status == 200) {
+            console.log(response.status)
 
             if (primary.uuid == this.uuid) {
               // I am still leader run as normal
@@ -631,11 +630,14 @@ export class DistributedServerNode {
           }
         } catch (error) {
           console.error(`Error querying node ${node.address}:${node.distributedPort}:`, error.message);
+          break;
         }
       }
+
+
     }
     // Nobody responded, start as normal
-    console.log("Self still leader");
+    console.log("Nobody responded, Self still leader");
     this.initRoutines();
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     if (this.isPrimaryNode) {
