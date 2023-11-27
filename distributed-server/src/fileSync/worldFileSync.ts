@@ -176,6 +176,7 @@ export class FileWatcher {
 
     const result = await axios.get(URL);
     const fileQueue = result.data;
+    console.log(fileQueue);
     const difference = this.findDifferenceQueue(fileQueue);
     await this.getAllFiles(difference);
     this.fileQueue = fileQueue;
@@ -183,7 +184,7 @@ export class FileWatcher {
     this.saveQueueToFile();
     this.inRecovery = false;
 
-    console.log("Recovery complete, with transaction starting at:",this.counter);
+    console.log("Recovery complete, with transaction starting at:", this.counter);
   }
 
   private findDifferenceQueue(fileQueue) {

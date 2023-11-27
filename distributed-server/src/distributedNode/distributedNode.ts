@@ -290,11 +290,14 @@ export class DistributedServerNode {
     this.updateSelfNode();
     this.networkNodes = [this.selfNode];
     this.primaryNode = this.findPrimaryNode();
-    //await this.initRsyncServer();
-    this.fileWatcher.startWatching();
     this.initRoutines();
     this.saveToFile();
     this.initMCServerApplication();
+    this.fileWatcher = new FileWatcher(
+      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
+      this
+    );
+    this.fileWatcher.startWatching();
   }
 
   public async requestNetwork({ address }) {
@@ -308,17 +311,6 @@ export class DistributedServerNode {
       this.inNetwork = true;
       this.networkNodes = results.data.data;
       this.primaryNode = this.findPrimaryNode();
-
-      // Rsync client update
-      this.rSyncTerm = 0;
-      // this.rSyncClient = new RSyncClient({
-      //   host: this.primaryNode.address,
-      //   port: this.primaryNode.rsyncPort,
-      //   username: "username",
-      //   password: "password",
-      //   privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
-      // });
-      // await this.rSyncClient.connect();
       this.RAFTConsensus = new RAFTconsensus(
         this.raftSave.currentTerm,
         this.raftSave.votedFor,
@@ -337,6 +329,7 @@ export class DistributedServerNode {
     this.networkNodes.push(node);
     // Propogate all nodes to network
     this.propagateNetworkNodeList();
+    this.saveToFile();
     return this.networkNodes;
   }
   public async requestLeaveNetwork() {
@@ -370,6 +363,7 @@ export class DistributedServerNode {
   public async acceptLeaveNetwork(node: DistributedNode) {
     this.removeNetworkNode(node.uuid);
     this.propagateNetworkNodeList();
+    this.saveToFile();
   }
   public removeNetworkNode(uuid: string) {
     const indexToRemove = this.networkNodes.findIndex((node) => node.uuid === uuid);
@@ -562,8 +556,6 @@ export class DistributedServerNode {
     this.primaryNode = this.findPrimaryNode();
     this.initRoutines();
     await this.propagateLeadershipNotification();
-    // Boot up minecraft server and ssh server;
-    //await this.initRsyncServer();
     this.fileWatcher = new FileWatcher(
       ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
       this
