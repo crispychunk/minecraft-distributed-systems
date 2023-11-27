@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync, ensureFileSync, existsSync, ensureDirSync,
 import { DistributedNode } from "../distributedNode/node/distributedNodeInterface";
 import { DistributedServerNode } from "../distributedNode/distributedNode";
 import path from "path";
-const env = "prod";
+let env = "prod";
 export class FileWatcher {
   private directoriesToWatch: string[];
   private watchers: chokidar.FSWatcher[];
