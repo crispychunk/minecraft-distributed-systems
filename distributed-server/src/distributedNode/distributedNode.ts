@@ -599,10 +599,10 @@ export class DistributedServerNode {
       if (node.uuid != this.uuid) {
         try {
           const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`);
-
+          const { primary } = response.data.info;
           if (response) {
             // Add your logic to verify and handle the primary node claim
-            const { primary } = response.data.info;
+
             if (primary.uuid == this.uuid) {
               // I am still leader run as normal
               console.log("Self still leader");
@@ -618,20 +618,35 @@ export class DistributedServerNode {
               }
               this.initProcesses();
             } else {
-              const response = await axios.put(`http://${primary.address}:${primary.distributedPort}/request-recovery`);
-              console.log(response.data);
+              console.log("recovering...");
+              const URL = `http://${primary.address}:${primary.distributedPort}/request-recovery`;
+              const response = await axios.put(URL, { failedNode: this.selfNode });
               this.networkNodes = response.data.networkNodes;
 
+              this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
               this.fileWatcher.recovery();
             }
 
-            break;
+            return;
           }
         } catch (error) {
           console.error(`Error querying node ${node.address}:${node.distributedPort}:`, error.message);
         }
       }
     }
+    // Nobody responded, start as normal
+    console.log("Self still leader");
+    this.initRoutines();
+    this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
+    if (this.isPrimaryNode) {
+      //await this.initRsyncServer();
+      // No need to init mc server
+      if (ENV != "dev") {
+        this.initMCServerApplication();
+        this.fileWatcher.startWatching();
+      }
+    }
+    this.initProcesses();
   }
 
   recoverNode(node: DistributedNode) {
