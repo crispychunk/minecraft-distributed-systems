@@ -93,31 +93,30 @@ export const routes = (mainServer, node: DistributedServerNode) => {
   RSYNC ROUTES
 
   */
-  mainServer.put("/rSync", async (request, reply) => {
-    if (!node.inNetwork) {
-      return reply.code(400).send({ error: "Not in a network" });
-    }
+  // mainServer.put("/rSync", async (request, reply) => {
+  //   if (!node.inNetwork) {
+  //     return reply.code(400).send({ error: "Not in a network" });
+  //   }
 
-    if (node.isPrimaryNode) {
-      return reply.code(400).send({ error: "Its the primary node!" });
-    }
-    // Call server via ssh
-    node.syncWorlds();
+  //   if (node.isPrimaryNode) {
+  //     return reply.code(400).send({ error: "Its the primary node!" });
+  //   }
+  //   // Call server via ssh
+  //   node.syncWorlds();
 
-    // Set the current rsync replication term to the specified amount
+  //   // Set the current rsync replication term to the specified amount
 
-    return reply.code(200);
-  });
+  //   return reply.code(200);
+  // });
 
   // FILE SYNC
 
   mainServer.put("/file-change", async (request, reply) => {
-
     try {
       let { event, filePath, fileContent, order } = request.body;
       // Check if the order is the next one, if it is run the code, else run recovery:
-      filePath.replace(/\\/g, "/")
-      if (order == node.fileWatcher.counter+1 && !node.fileWatcher.inRecovery) {
+      filePath.replace(/\\/g, "/");
+      if (order == node.fileWatcher.counter + 1 && !node.fileWatcher.inRecovery) {
         node.fileWatcher.addFileToQueue(filePath);
         filePath = filePath.replace(/\\/g, "/");
         let directoryPath = path.dirname(filePath);
@@ -126,7 +125,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
         const decodedFileContent = Buffer.from(fileContent, "base64");
         fs.writeFileSync(filePath, decodedFileContent);
         // Also write to own log
-      
+
         console.log("recieved file changes");
         reply.code(200).send({ message: "File change received and saved successfully" });
       } else {
@@ -170,6 +169,16 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       console.error("Error handling /missing-files:", error.message);
       return reply.code(500).send({ error: "Internal Server Error" });
     }
+  });
+
+  //DISTRIBUTED NODE RECOVERY PATH
+
+  // Node calls primary server to faciliate recovery
+  mainServer.put("/request-recovery", async (request, reply) => {
+    const { failedNode } = request.body;
+    node.recoverNode(failedNode);
+    const networkNodes = node.networkNodes;
+    reply.code(200).send({ networkNodes });
   });
 
   /* 

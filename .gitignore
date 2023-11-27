@@ -9,3 +9,6 @@ minecraft-server/world
 minecraft-server/world_nether
 minecraft-server/world_the_end
 minecraft-server/logs
+
+**/save.json
+**/fileQueue.json

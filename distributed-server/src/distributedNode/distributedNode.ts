@@ -103,10 +103,7 @@ export class DistributedServerNode {
   public async start() {
     await this.initDistributedServer();
     this.initRoutines();
-    this.fileWatcher = new FileWatcher(
-      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
-      this
-    );
+    this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     if (this.isPrimaryNode) {
       //await this.initRsyncServer();
       // No need to init mc server
@@ -293,10 +290,7 @@ export class DistributedServerNode {
     this.initRoutines();
     this.saveToFile();
     this.initMCServerApplication();
-    this.fileWatcher = new FileWatcher(
-      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
-      this
-    );
+    this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     this.fileWatcher.startWatching();
   }
 
@@ -336,7 +330,6 @@ export class DistributedServerNode {
     // If it is primary, remove itself from all other nodes in the server
     if (this.isPrimaryNode) {
       await this.acceptLeaveNetwork(this.selfNode);
-      await this.rSyncServer.stopServer();
       MinecraftServerAdaptor.shutdownMinecraftServer();
       console.log("Complete shupdown of processes");
     } else {
@@ -349,7 +342,6 @@ export class DistributedServerNode {
         // Handle the error
         console.error("Error joining network:", error.message);
       }
-      this.rSyncClient.endConnection();
     }
 
     this.primaryNode = null;
@@ -495,8 +487,6 @@ export class DistributedServerNode {
       .get(url)
       .then(() => console.log(`GET request to ${url} successful.`))
       .catch((error: AxiosError) => {
-        console.error(`Error in GET request to ${url}:`, error.message);
-        //If server dead
         node.alive = false;
       });
   }
@@ -556,10 +546,7 @@ export class DistributedServerNode {
     this.primaryNode = this.findPrimaryNode();
     this.initRoutines();
     await this.propagateLeadershipNotification();
-    this.fileWatcher = new FileWatcher(
-      ["../minecraft-server/world", "../minecraft-server/world_nether", "../minecraft-server/world_the_end"],
-      this
-    );
+    this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     this.fileWatcher.startWatching();
     this.initMCServerApplication();
   }
@@ -602,6 +589,58 @@ export class DistributedServerNode {
       console.error("At least one PUT request failed:", error.message);
     }
   }
+
+  async recoveryStart() {
+    await this.initDistributedServer();
+
+    // Ask all known nodes who is the primary
+    for (const node of this.networkNodes) {
+      try {
+        const response = await axios.get(`http://${node.address}:${node.distributedPort}/info`);
+
+        if (response) {
+          // Add your logic to verify and handle the primary node claim
+          const { primary } = response.data.info;
+          if (primary.uuid == this.uuid) {
+            // I am still leader run as normal
+            console.log("Self still leader");
+            this.initRoutines();
+            this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
+            if (this.isPrimaryNode) {
+              //await this.initRsyncServer();
+              // No need to init mc server
+              if (ENV != "dev") {
+                this.initMCServerApplication();
+                this.fileWatcher.startWatching();
+              }
+            }
+            this.initProcesses();
+          } else {
+            const response = await axios.put(`http://${primary.address}:${primary.distributedPort}/request-recovery`);
+            console.log(response.data);
+            this.networkNodes = response.data.networkNodes;
+
+            this.fileWatcher.recovery();
+          }
+
+          break;
+        }
+      } catch (error) {
+        console.error(`Error querying node ${node.address}:${node.distributedPort}:`, error.message);
+      }
+    }
+  }
+
+  recoverNode(node: DistributedNode) {
+    const foundNode = this.networkNodes.find((networkNode) => networkNode.uuid === node.uuid);
+
+    if (foundNode) {
+      foundNode.alive = true;
+    } else {
+      this.networkNodes.push(foundNode);
+      this.propagateNetworkNodeList();
+    }
+  }
 }
 
 export function loadFromFile(): DistributedServerNode | null {
@@ -610,7 +649,7 @@ export function loadFromFile(): DistributedServerNode | null {
     const parsedData = JSON.parse(data);
 
     // Assuming DistributedServerNode is your class
-    const loadedNode = new DistributedServerNode(
+    const node = new DistributedServerNode(
       parsedData.address,
       parsedData.mainPort,
       parsedData.rsyncPort,
@@ -622,9 +661,9 @@ export function loadFromFile(): DistributedServerNode | null {
       parsedData.rSyncTerm,
       parsedData.raftSave
     );
-
+    node.recoveryStart();
     console.log("DistributedServerNode loaded from file successfully.");
-    return loadedNode;
+    return node;
   } catch (err) {
     console.error("Error reading/parsing DistributedServerNode from file:", err);
     return null;

@@ -37,8 +37,8 @@ function main() {
   if (node == null) {
     console.log("creating new node");
     node = new DistributedServerNode(address, httpPort, rSyncPort, minecraftPort, null, null, null, null, null, null);
+    node.start();
   }
-  node.start();
   console.log("Distributed node up!"); // Print a message to the console
 }
 

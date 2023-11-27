@@ -3,34 +3,14 @@
   "rsyncPort": 22,
   "minecraftPort": null,
   "address": "localhost",
-  "isPrimaryNode": true,
-  "inNetwork": true,
-  "networkNodes": [
-    {
-      "uuid": "d60b7fde-d889-4486-9d47-95fc4b693ffc",
-      "address": "localhost",
-      "distributedPort": 8080,
-      "rsyncPort": 22,
-      "minecraftPort": null,
-      "alive": true,
-      "isPrimary": true,
-      "rSyncTerm": 0
-    }
-  ],
-  "uuid": "d60b7fde-d889-4486-9d47-95fc4b693ffc",
+  "isPrimaryNode": false,
+  "inNetwork": false,
+  "networkNodes": [],
+  "uuid": null,
   "rSyncTerm": 0,
-  "primaryNode": {
-    "uuid": "d60b7fde-d889-4486-9d47-95fc4b693ffc",
-    "address": "localhost",
-    "distributedPort": 8080,
-    "rsyncPort": 22,
-    "minecraftPort": null,
-    "alive": true,
-    "isPrimary": true,
-    "rSyncTerm": 0
-  },
+  "primaryNode": null,
   "selfNode": {
-    "uuid": "d60b7fde-d889-4486-9d47-95fc4b693ffc",
+    "uuid": "08b25cf8-ace3-4574-8ac8-275a19c7fda2",
     "address": "localhost",
     "distributedPort": 8080,
     "rsyncPort": 22,

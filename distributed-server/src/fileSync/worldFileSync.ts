@@ -1,11 +1,11 @@
 import chokidar from "chokidar";
 import axios from "axios";
 import { join, basename } from "path";
-import { readFileSync, writeFileSync, ensureFileSync, existsSync, ensureDir } from "fs-extra";
+import { readFileSync, writeFileSync, ensureFileSync, existsSync, ensureDirSync, ensureDir } from "fs-extra";
 import { DistributedNode } from "../distributedNode/node/distributedNodeInterface";
 import { DistributedServerNode } from "../distributedNode/distributedNode";
 import path from "path";
-
+const env = "prod";
 export class FileWatcher {
   private directoriesToWatch: string[];
   private watchers: chokidar.FSWatcher[];
@@ -17,14 +17,27 @@ export class FileWatcher {
 
   constructor(directoriesToWatch: string[], node: DistributedServerNode) {
     this.directoriesToWatch = directoriesToWatch;
-    this.watchers = directoriesToWatch.map((dir) => chokidar.watch(dir, { persistent: true }));
+    this.watchers = [];
     this.fileQueue = [];
     this.counter = 1;
     this.initialScanComplete = false;
     this.node = node;
 
+    // Ensure directories exist before setting up watchers
+    this.ensureDirectoriesExist();
+
+    // Set up the watchers after ensuring directories exist
+    this.watchers = directoriesToWatch.map((dir) => chokidar.watch(dir, { persistent: true }));
+
     // Load the fileQueue from the saved JSON file
     this.loadQueueFromFile();
+  }
+
+  private ensureDirectoriesExist() {
+    this.directoriesToWatch.forEach((dir) => {
+      // Ensure the directory exists, creating it if necessary
+      ensureDirSync(dir);
+    });
   }
 
   private setupEventHandlers(): void {
@@ -40,7 +53,7 @@ export class FileWatcher {
   }
 
   private async handleFileChange(event: string, filePath: string) {
-    if (!this.initialScanComplete) {
+    if (!this.initialScanComplete || env == "dev") {
       return;
     }
 
@@ -176,7 +189,6 @@ export class FileWatcher {
 
     const result = await axios.get(URL);
     const fileQueue = result.data;
-    console.log(fileQueue);
     const difference = this.findDifferenceQueue(fileQueue);
     await this.getAllFiles(difference);
     this.fileQueue = fileQueue;
@@ -220,7 +232,6 @@ export class FileWatcher {
         const URL = `http://${this.node.primaryNode.address}:${this.node.primaryNode.distributedPort}`;
         try {
           const response = await axios.post(`${URL}/missing-files`, { filePath });
-          console.log("recieved", filePath);
           let { content } = response.data;
           content = Buffer.from(content, "base64");
           const directoryPath = path.dirname(filePath);
