@@ -550,6 +550,7 @@ export class DistributedServerNode {
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     this.fileWatcher.startWatching();
     this.initMCServerApplication();
+    this.saveToFile();
   }
 
   public async accepteLeadership(data) {
