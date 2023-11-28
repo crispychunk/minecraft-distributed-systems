@@ -521,6 +521,7 @@ export class DistributedServerNode {
 
     try {
       await Promise.all(requestPromises);
+      console.log(`Heartbeat for ${this.uuid} complete`)
     } catch (error) {
       console.error("At least one PUT request failed:", error.message);
     }
@@ -644,6 +645,8 @@ export class DistributedServerNode {
               this.networkNodes = response.data.networkNodes;
               this.primaryNode = this.findPrimaryNode();
               this.isPrimaryNode = false;
+              // Update self node
+              this.updateSelfNode();
               const raftResponse = await axios.get(RAFTURL);
               const primaryraftSave: RAFTSave = raftResponse.data.raftState;
               const newRaftSave: RAFTSave = {
