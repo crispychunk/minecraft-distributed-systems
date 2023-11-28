@@ -506,6 +506,7 @@ export class DistributedServerNode {
       .get(url)
       .then(() => console.log(`GET request to ${url} successful.`))
       .catch((error: AxiosError) => {
+        console.log(node.uuid, ' has failed')
         node.alive = false;
       });
   }
@@ -697,6 +698,7 @@ export class DistributedServerNode {
     const foundNode = this.networkNodes.find((networkNode) => networkNode.uuid === node.uuid);
 
     if (foundNode) {
+      console.log(foundNode)
       foundNode.alive = true;
     } else {
       this.networkNodes.push(foundNode);

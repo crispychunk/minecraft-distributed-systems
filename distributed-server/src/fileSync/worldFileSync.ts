@@ -119,7 +119,7 @@ export class FileWatcher {
       event,
       filePath,
       fileContent: fileContent.toString("base64"),
-      order: this.fileQueue.slice(), // Send a copy of the current order
+      order: this.counter,
     };
 
     return axios
