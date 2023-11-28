@@ -160,7 +160,6 @@ export class DistributedServerNode {
         bodyLimit: 500 * 1024 * 1024, // 10MB limit
       });
 
-
       // Define a route
       routes(this.mainServer, this);
 
@@ -313,9 +312,9 @@ export class DistributedServerNode {
       const newRaftSave: RAFTSave = {
         currentTerm: primaryraftSave.currentTerm,
         votedFor: null,
-        state: RaftState.FOLLOWER
-      }
-      this.raftSave = newRaftSave
+        state: RaftState.FOLLOWER,
+      };
+      this.raftSave = newRaftSave;
       this.RAFTConsensus = new RAFTconsensus(
         this.raftSave.currentTerm,
         this.raftSave.votedFor,
@@ -410,7 +409,7 @@ export class DistributedServerNode {
     }
   }
 
-  // RSYNC
+  // RSYNC DEPRICATED
   public syncWorlds() {
     if (ENV == "dev") {
       this.rSyncClient.run(
@@ -440,7 +439,6 @@ export class DistributedServerNode {
   public initRoutines() {
     this.resetRoutines();
     this.initHeartbeatRoutine();
-    //this.initReplicationRoutine();
     console.log(`Complete Routine Setup for ${this.uuid}`);
   }
 
@@ -450,7 +448,7 @@ export class DistributedServerNode {
     this.heartbeatTimerId && clearInterval(this.heartbeatTimerId);
   }
 
-  // Only primary send to other
+  // Only primary send to other DEPRICATED
   public initReplicationRoutine() {
     if (this.isPrimaryNode) {
       this.rSyncId = setInterval(async () => {
@@ -503,17 +501,20 @@ export class DistributedServerNode {
   private sendHeartbeatRequest(node: DistributedNode): Promise<void> {
     const url = `http://${node.address}:${node.distributedPort}/heartbeat`;
     return axios
-      .get(url,{timeout: 4000})
-      .then(() => {node.alive = true;})
+      .get(url, { timeout: 4000 })
+      .then(() => {
+        node.alive = true;
+      })
       .catch((error: AxiosError) => {
-        console.log(node.uuid, ' has failed')
+        if (node.alive) {
+          console.log(node.uuid, " has failed");
+        }
         node.alive = false;
       });
   }
 
   public async propagateHeartbeat(): Promise<void> {
     const requestPromises = this.networkNodes.map((node) => {
-      // Dont send to itself
       if (node.uuid != this.uuid) {
         this.sendHeartbeatRequest(node);
       }
@@ -521,7 +522,7 @@ export class DistributedServerNode {
 
     try {
       await Promise.all(requestPromises);
-      console.log(`Heartbeat for ${this.uuid} complete`)
+      console.log(`Heartbeat for ${this.uuid} complete`);
     } catch (error) {
       console.error("At least one PUT request failed:", error.message);
     }
@@ -534,7 +535,7 @@ export class DistributedServerNode {
     }
     clearInterval(this.heartbeatTimerId);
     const baseDelay = Math.pow(2, 3) * 100;
-    const randomFactor = Math.random() + 0.5; // Adjust the range of randomness as needed
+    const randomFactor = Math.random() + 0.5;
     const electionDelay = Math.min(baseDelay * randomFactor, 13000);
     await sleep(electionDelay);
     console.log("Running Raft election");
@@ -574,17 +575,10 @@ export class DistributedServerNode {
     this.saveToFile();
   }
 
-  public async accepteLeadership(data) {
+  public async acceptLeadership(data) {
     this.RAFTConsensus.clearElectionTimeout();
     this.networkNodes = data;
     this.primaryNode = this.findPrimaryNode();
-    this.rSyncClient = new RSyncClient({
-      host: this.primaryNode.address,
-      port: this.primaryNode.rsyncPort,
-      username: "username",
-      password: "password",
-      privateKey: require("fs").readFileSync("./src/rsync/ssh/minecraftServer.pem"),
-    });
     this.initRoutines();
     this.saveToFile();
   }
@@ -652,9 +646,9 @@ export class DistributedServerNode {
               const newRaftSave: RAFTSave = {
                 currentTerm: primaryraftSave.currentTerm,
                 votedFor: null,
-                state: RaftState.FOLLOWER
-              }
-              this.raftSave = newRaftSave
+                state: RaftState.FOLLOWER,
+              };
+              this.raftSave = newRaftSave;
               this.RAFTConsensus = new RAFTconsensus(
                 this.raftSave.currentTerm,
                 this.raftSave.votedFor,

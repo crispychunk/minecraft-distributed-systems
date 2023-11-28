@@ -29,7 +29,6 @@ export const routes = (mainServer, node: DistributedServerNode) => {
 
     return { message: "Network started successfully" };
   });
-  
 
   // Route to tell node to join a network
   mainServer.put("/request-network", async (request, reply) => {
@@ -230,13 +229,13 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       return reply.code(400).send({ error: "This is a primary node!" });
     }
     //End election timeout and reinitiate all routines
-    node.accepteLeadership(request.body);
+    node.acceptLeadership(request.body);
     return { message: "New Leader Accepted" };
   });
 
   // Server call primary server to get the raft state
-  mainServer.get("/raft-state",async (request,reply)=> {
+  mainServer.get("/raft-state", async (request, reply) => {
     const raftState = node.RAFTConsensus.saveFile();
-    return reply.code(200).send({raftState})
-  })
+    return reply.code(200).send({ raftState });
+  });
 };
