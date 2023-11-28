@@ -503,8 +503,8 @@ export class DistributedServerNode {
   private sendHeartbeatRequest(node: DistributedNode): Promise<void> {
     const url = `http://${node.address}:${node.distributedPort}/heartbeat`;
     return axios
-      .get(url)
-      .then(() => console.log(`GET request to ${url} successful.`))
+      .get(url,{timeout: 4000})
+      .then(() => {node.alive = true;})
       .catch((error: AxiosError) => {
         console.log(node.uuid, ' has failed')
         node.alive = false;
@@ -521,7 +521,6 @@ export class DistributedServerNode {
 
     try {
       await Promise.all(requestPromises);
-      console.log("All Heartbeat requests completed successfully.");
     } catch (error) {
       console.error("At least one PUT request failed:", error.message);
     }
@@ -569,6 +568,7 @@ export class DistributedServerNode {
     await this.propagateLeadershipNotification();
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     this.fileWatcher.startWatching();
+    this.RAFTConsensus.state = RaftState.LEADER;
     this.initMCServerApplication();
     this.saveToFile();
   }
@@ -695,13 +695,12 @@ export class DistributedServerNode {
   }
 
   recoverNode(node: DistributedNode) {
-    const foundNode = this.networkNodes.find((networkNode) => networkNode.uuid === node.uuid);
+    let foundNode = this.networkNodes.find((networkNode) => networkNode.uuid === node.uuid);
 
     if (foundNode) {
-      console.log(foundNode)
       foundNode.alive = true;
     } else {
-      this.networkNodes.push(foundNode);
+      this.networkNodes.push(node);
       this.propagateNetworkNodeList();
     }
   }
