@@ -230,7 +230,6 @@ export class DistributedServerNode {
   }
 
   public getServerInformation() {
-    console.log("getting server info");
     const raftState = this.RAFTConsensus.saveFile();
     return {
       node: this.selfNode,
@@ -338,6 +337,7 @@ export class DistributedServerNode {
     this.networkNodes = [];
     this.uuid = null;
     this.inNetwork = false;
+    this.updateSelfNode();
     this.initRoutines();
 
     // RESET RAFT STATES
