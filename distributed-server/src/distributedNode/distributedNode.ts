@@ -47,7 +47,7 @@ export class DistributedServerNode {
   public heartbeatTimerId: any;
 
   // Rsync information
-  public rSyncClient: RSyncClient;
+
   public rSyncTerm: number;
 
   // Raft Consensus
@@ -410,30 +410,6 @@ export class DistributedServerNode {
   }
 
   // RSYNC DEPRICATED
-  public syncWorlds() {
-    if (ENV == "dev") {
-      this.rSyncClient.run(
-        `rsync -avz --delete --progress --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world ./test/worlds/${this.uuid}`
-      );
-      this.rSyncClient.run(
-        `rsync -avz --delete --progress --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_nether ./test/worlds/${this.uuid}`
-      );
-      this.rSyncClient.run(
-        `rsync -avz --delete --progress --exclude-from=./src/rsync/.rsyncignore ../minecraft-server/world_the_end ./test/worlds/${this.uuid}`
-      );
-    } else {
-      this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore username@${this.address}:../minecraft-server/world ../minecraft-server/backup`
-      );
-      this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore username@${this.address}:../minecraft-server/world_nether ../minecraft-server/backup`
-      );
-      this.rSyncClient.run(
-        `rsync -avz --delete --exclude-from=./src/rsync/.rsyncignore username@${this.address}:../minecraft-server/world_the_end ../minecraft-server/backup`
-      );
-    }
-  }
-
   // NETWORK ROUTINES
 
   public initRoutines() {
@@ -623,8 +599,6 @@ export class DistributedServerNode {
               this.initRoutines();
               this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
               if (this.isPrimaryNode) {
-                //await this.initRsyncServer();
-                // No need to init mc server
                 if (ENV != "dev") {
                   this.initMCServerApplication();
                   this.fileWatcher.startWatching();
@@ -660,6 +634,7 @@ export class DistributedServerNode {
               this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
               this.fileWatcher.recovery();
               this.saveToFile();
+              console.log(this.uuid, " Recovery complete");
             }
 
             return;
@@ -681,8 +656,6 @@ export class DistributedServerNode {
     this.initRoutines();
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
     if (this.isPrimaryNode) {
-      //await this.initRsyncServer();
-      // No need to init mc server
       if (ENV != "dev") {
         this.initMCServerApplication();
         this.fileWatcher.startWatching();
