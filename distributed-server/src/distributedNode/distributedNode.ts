@@ -1,13 +1,11 @@
 import fastify from "fastify";
 import { MinecraftServerAdaptor } from "../minecraftServerAdaptor/MinecraftServerAdaptor";
-import { RSyncServer } from "../rsync/RSyncServer";
 import { routes } from "./routes";
 import { v4 as uuidv4 } from "uuid";
 import * as fs from "fs";
 import { DistributedNode, RAFTSave, RaftState } from "./node/distributedNodeInterface";
 import axios, { AxiosError } from "axios";
 import { clearInterval } from "timers";
-import { RSyncClient } from "../rsync/RSyncClient";
 import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMER, RSYNC_INTERVAL } from "./node/timers";
 import { RAFTconsensus } from "./RAFTconsensus";
 import { clear } from "console";
@@ -23,9 +21,6 @@ export class DistributedServerNode {
 
   // Main Server
   public mainServer: any;
-
-  // RSync Server
-  public rSyncServer: RSyncServer;
 
   // Filewatcher
   public fileWatcher: FileWatcher;
@@ -178,22 +173,6 @@ export class DistributedServerNode {
 
   private initMCServerApplication(): void {
     MinecraftServerAdaptor.startMinecraftServer("../minecraft-server");
-  }
-
-  private async initRsyncServer(): Promise<void> {
-    return new Promise<void>(async (resolve, reject) => {
-      this.rSyncServer = new RSyncServer();
-      console.log("Initiating RSync Server");
-
-      try {
-        await this.rSyncServer.startServer(this.rsyncPort, this.address);
-        console.log("Rsync Server started successfully");
-        resolve();
-      } catch (error) {
-        console.error(`Error starting server: ${error}`);
-        reject(error);
-      }
-    });
   }
 
   private initProcesses() {
