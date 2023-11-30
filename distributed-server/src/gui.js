@@ -24,7 +24,7 @@ function getLocalIPv4Address() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
+    width: 600,
     height: 600,
     webPreferences: {
       nodeIntegration: false, // Set to false to use preload script

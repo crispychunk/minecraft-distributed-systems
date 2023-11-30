@@ -70,7 +70,7 @@ export class DistributedServerNode {
     this.uuid = uuid || null;
     this.rSyncTerm = rSyncTerm || 0;
     this.updateSelfNode();
-    this.networkNodes = networkNodes || [this.selfNode];
+    this.networkNodes = networkNodes || [];
     this.primaryNode = this.findPrimaryNode();
     this.alive = true;
     const baseRaftSave: RAFTSave = {
