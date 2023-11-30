@@ -13,7 +13,7 @@ function getLocalIPv4Address() {
 
     for (const iface of interfaceInfo) {
       // Check for IPv4 and exclude loopback and internal addresses
-      if ((iface.family === "IPv4" || iface.family === 4) && !iface.internal && iface.address !== "127.0.0.1") {
+      if ((iface.family === "IPv4" || iface.family === 4) && !iface.internal && iface.address !== "127.0.0.1" && !iface.address.startsWith('172')) {
         return iface.address;
       }
     }

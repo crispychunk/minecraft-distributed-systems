@@ -14,6 +14,7 @@ function getLocalIPv4Address(): string | null {
         (iface.family === "IPv4" || (iface.family as any) === 4) &&
         !iface.internal &&
         iface.address !== "127.0.0.1"
+        && !iface.address.startsWith('172')
       ) {
         return iface.address;
       }
