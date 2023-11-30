@@ -466,10 +466,9 @@ export class DistributedServerNode {
       .catch((error: AxiosError) => {
         if (node.alive) {
           console.log(node.uuid, " has failed");
-          return;
+          node.alive = false;
+          this.propagateNetworkNodeList();
         }
-        node.alive = false;
-        this.propagateNetworkNodeList();
       });
   }
 
