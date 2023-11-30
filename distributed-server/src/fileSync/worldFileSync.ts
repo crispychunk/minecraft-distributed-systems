@@ -100,7 +100,7 @@ export class FileWatcher {
 
   public async propagateFileChange(event: string, filePath: string, fileContent: string): Promise<void> {
     const requestPromises = this.node.networkNodes.map((node) => {
-      if (node.uuid !== this.node.uuid && this.node.alive) {
+      if (node.uuid !== this.node.uuid && node.alive) {
         this.sendFileChange(node, event, filePath, fileContent);
       }
     });

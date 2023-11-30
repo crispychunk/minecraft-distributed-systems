@@ -68,10 +68,10 @@ export class DistributedServerNode {
     this.inNetwork = inNetwork || false;
     this.uuid = uuid || null;
     this.rSyncTerm = rSyncTerm || 0;
+    this.alive = true;
     this.updateSelfNode();
     this.networkNodes = networkNodes || [];
     this.primaryNode = this.findPrimaryNode();
-    this.alive = true;
     const baseRaftSave: RAFTSave = {
       currentTerm: 0,
       votedFor: null,
