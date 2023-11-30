@@ -8,7 +8,6 @@ import axios, { AxiosError } from "axios";
 import { clearInterval } from "timers";
 import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMER, RSYNC_INTERVAL } from "./node/timers";
 import { RAFTconsensus } from "./RAFTconsensus";
-import { clear } from "console";
 import { FileWatcher } from "../fileSync/worldFileSync";
 const FILEPATH = "./src/distributedNode/node/save.json";
 let ENV = "prod";
@@ -519,8 +518,8 @@ export class DistributedServerNode {
     this.updateSelfNode();
     this.removeNetworkNode(this.uuid);
     this.networkNodes.push(this.selfNode);
-    this.primaryNode.isPrimary = false; // Set original primary node to false
     this.primaryNode = this.findPrimaryNode();
+    this.primaryNode.isPrimary = false;
     this.initRoutines();
     await this.propagateLeadershipNotification();
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
