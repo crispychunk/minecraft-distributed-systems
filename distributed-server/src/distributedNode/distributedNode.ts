@@ -275,6 +275,7 @@ export class DistributedServerNode {
     const RAFTURL = `${address}/raft-state`;
     this.uuid = uuidv4();
     this.updateSelfNode();
+    console.log(address);
     try {
       const results = await axios.put(requestURL, this.selfNode);
       console.log("Join successful");
@@ -283,7 +284,6 @@ export class DistributedServerNode {
       this.networkNodes = results.data.data;
       this.primaryNode = this.findPrimaryNode();
 
-      // NEED TESTING
       const raftResponse = await axios.get(RAFTURL);
       const primaryraftSave: RAFTSave = raftResponse.data.raftState;
       const newRaftSave: RAFTSave = {
@@ -360,6 +360,7 @@ export class DistributedServerNode {
     } else {
       console.warn(`Network node with UUID ${uuid} not found.`);
     }
+    console.log(this.networkNodes);
   }
   private sendPutRequest(node: DistributedNode): Promise<void> {
     const url = `http://${node.address}:${node.distributedPort}/update-network`;
@@ -457,13 +458,18 @@ export class DistributedServerNode {
     return axios
       .get(url, { timeout: 4000 })
       .then(() => {
-        node.alive = true;
+        if (node.alive == false) {
+          node.alive = true;
+          this.propagateNetworkNodeList();
+        }
       })
       .catch((error: AxiosError) => {
         if (node.alive) {
           console.log(node.uuid, " has failed");
+          return;
         }
         node.alive = false;
+        this.propagateNetworkNodeList();
       });
   }
 
