@@ -521,10 +521,10 @@ export class DistributedServerNode {
   public async assumeLeadership() {
     this.isPrimaryNode = true;
     this.updateSelfNode();
+    this.primaryNode.isPrimary = false;
     this.removeNetworkNode(this.uuid);
     this.networkNodes.push(this.selfNode);
     this.primaryNode = this.findPrimaryNode();
-    this.primaryNode.isPrimary = false;
     this.initRoutines();
     await this.propagateLeadershipNotification();
     this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
