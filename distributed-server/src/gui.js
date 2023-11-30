@@ -54,6 +54,7 @@ app.on("window-all-closed", () => {
 // Internal logic
 let info;
 let nodeList;
+
 async function getInfo() {
   const address = getLocalIPv4Address();
   const port = 8080;
@@ -69,14 +70,16 @@ setInterval(getInfo, 1000);
 // Call Distributed Server for information
 
 // Listen for the 'join-network' message from the renderer process
-ipcMain.on("join-network", async (nodeAddress) => {
+ipcMain.on("join-network", async (event, nodeAddress) => {
   const address = getLocalIPv4Address();
   const port = 8080;
   const URL = `http://${address}:${port}/request-network`;
+  console.log(nodeAddress);
   const body = {
     address: `http://${nodeAddress}:${8080}`,
   };
 
+  console.log(URL);
   try {
     await axios.put(URL, body);
     mainWindow.webContents.send("join-success");
