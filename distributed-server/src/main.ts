@@ -13,8 +13,8 @@ function getLocalIPv4Address(): string | null {
       if (
         (iface.family === "IPv4" || (iface.family as any) === 4) &&
         !iface.internal &&
-        iface.address !== "127.0.0.1"
-        && !iface.address.startsWith('172')
+        iface.address !== "127.0.0.1" &&
+        !iface.address.startsWith("172")
       ) {
         return iface.address;
       }
@@ -29,7 +29,6 @@ function main() {
   // Find public IP
   const localIpAddress = getLocalIPv4Address();
   const address: string = localIpAddress;
-  console.log(address);
   const httpPort: number = 8080;
   const rSyncPort: number = 8081;
   const minecraftPort: number = 8082;
