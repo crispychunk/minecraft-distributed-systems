@@ -89,26 +89,6 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     return { message: "Removed node successfully" };
   });
 
-  /*
-  RSYNC ROUTES
-
-  */
-  // mainServer.put("/rSync", async (request, reply) => {
-  //   if (!node.inNetwork) {
-  //     return reply.code(400).send({ error: "Not in a network" });
-  //   }
-
-  //   if (node.isPrimaryNode) {
-  //     return reply.code(400).send({ error: "Its the primary node!" });
-  //   }
-  //   // Call server via ssh
-  //   node.syncWorlds();
-
-  //   // Set the current rsync replication term to the specified amount
-
-  //   return reply.code(200);
-  // });
-
   // FILE SYNC
 
   mainServer.put("/file-change", async (request, reply) => {
@@ -118,13 +98,12 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       filePath = filePath.replace(/\\/g, "/");
       console.log(order, filePath);
       if (order == node.fileWatcher.counter + 1 && !node.fileWatcher.inRecovery) {
-        node.fileWatcher.addFileToQueue(filePath);
         let directoryPath = path.dirname(filePath);
         await fs.ensureDir(directoryPath);
-        const testPath = `./test/worlds/${path.basename(filePath)}`;
+        console.log(filePath);
         const decodedFileContent = Buffer.from(fileContent, "base64");
         fs.writeFileSync(filePath, decodedFileContent);
-        // Also write to own log
+        node.fileWatcher.addFileToQueue(filePath);
 
         console.log("recieved file changes");
         reply.code(200).send({ message: "File change received and saved successfully" });

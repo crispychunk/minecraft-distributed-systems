@@ -1,5 +1,11 @@
 [
   {
+    "uuid": "b83b2ff9-499e-4f4d-8185-94962e6678c3",
+    "name": "Aackcody",
+    "level": 4,
+    "bypassesPlayerLimit": false
+  },
+  {
     "uuid": "8396c016-a968-4471-bb66-7838d7b7a75c",
     "name": "rice_crispy",
     "level": 4,

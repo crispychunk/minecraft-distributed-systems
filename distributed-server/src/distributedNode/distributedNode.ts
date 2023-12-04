@@ -616,6 +616,7 @@ export class DistributedServerNode {
               this.initRoutines();
               this.fileWatcher = new FileWatcher(["../minecraft-server"], this);
               this.fileWatcher.recovery();
+              this.initProcesses();
               this.saveToFile();
               console.log(this.uuid, " Recovery complete");
             }
