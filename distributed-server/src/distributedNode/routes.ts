@@ -98,6 +98,7 @@ export const routes = (mainServer, node: DistributedServerNode) => {
       filePath = filePath.replace(/\\/g, "/");
       console.log(order, filePath);
       if (order == node.fileWatcher.counter + 1 && !node.fileWatcher.inRecovery) {
+        node.fileWatcher.counter++;
         let directoryPath = path.dirname(filePath);
         await fs.ensureDir(directoryPath);
         console.log(filePath);

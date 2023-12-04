@@ -93,7 +93,6 @@ export class FileWatcher {
   }
 
   addFileToQueue(filePath: string) {
-    this.counter++;
     this.fileQueue.push({ order: this.counter, filePath });
     this.saveQueueToFile();
   }
