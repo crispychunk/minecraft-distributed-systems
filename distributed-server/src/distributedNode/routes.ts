@@ -115,10 +115,10 @@ export const routes = (mainServer, node: DistributedServerNode) => {
     try {
       let { event, filePath, fileContent, order } = request.body;
       // Check if the order is the next one, if it is run the code, else run recovery:
-      filePath.replace(/\\/g, "/");
+      filePath = filePath.replace(/\\/g, "/");
+      console.log(order, filePath);
       if (order == node.fileWatcher.counter + 1 && !node.fileWatcher.inRecovery) {
         node.fileWatcher.addFileToQueue(filePath);
-        filePath = filePath.replace(/\\/g, "/");
         let directoryPath = path.dirname(filePath);
         await fs.ensureDir(directoryPath);
         const testPath = `./test/worlds/${path.basename(filePath)}`;
