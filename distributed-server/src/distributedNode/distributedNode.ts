@@ -176,27 +176,27 @@ export class DistributedServerNode {
 
   private initProcesses() {
     process.on("beforeExit", async () => {
-      await MinecraftServerAdaptor.shutdownMinecraftServer();
       if (this.isPrimaryNode) {
         //await this.rSyncServer.stopServer();
         await MinecraftServerAdaptor.shutdownMinecraftServer();
+        sleep(2000);
       }
     });
 
     process.on("SIGINT", async () => {
-      await MinecraftServerAdaptor.shutdownMinecraftServer();
       if (this.isPrimaryNode) {
         //await this.rSyncServer.stopServer();
         await MinecraftServerAdaptor.shutdownMinecraftServer();
+        sleep(2000);
       }
       process.exit(1);
     });
 
     process.on("SIGTERM", async () => {
-      await MinecraftServerAdaptor.shutdownMinecraftServer();
       if (this.isPrimaryNode) {
         //await this.rSyncServer.stopServer();
         await MinecraftServerAdaptor.shutdownMinecraftServer();
+        sleep(2000);
       }
       process.exit(1);
     });
